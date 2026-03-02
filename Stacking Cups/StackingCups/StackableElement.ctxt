@@ -1,0 +1,10 @@
+#BlueJ class context
+comment0.target=StackableElement
+comment0.text=\r\n\ Write\ a\ description\ of\ class\ StackableElement\ here.\r\n\ \r\n\ @author\ Carlos\ Felipe\ Jimenez\ Sposito\r\n\ @version\ 1.0\r\n
+comment1.params=number
+comment1.target=StackableElement(int)
+comment2.params=
+comment2.target=int\ getNumber()
+comment3.params=
+comment3.target=java.lang.String\ getType()
+numComments=4

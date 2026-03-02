@@ -1,0 +1,47 @@
+#BlueJ class context
+comment0.target=Circle
+comment0.text=\r\n\ A\ circle\ that\ can\ be\ manipulated\ and\ that\ draws\ itself\ on\ a\ canvas.\r\n\ \r\n\ @author\ \ Michael\ Kolling\ and\ David\ J.\ Barnes\r\n\ @version\ 1.0.\ \ (15\ July\ 2000)\ \r\n
+comment1.params=
+comment1.target=Circle()
+comment10.params=distance
+comment10.target=void\ moveHorizontal(int)
+comment10.text=\r\n\ Move\ the\ circle\ horizontally.\r\n\ @param\ distance\ the\ desired\ distance\ in\ pixels\r\n
+comment11.params=distance
+comment11.target=void\ moveVertical(int)
+comment11.text=\r\n\ Move\ the\ circle\ vertically.\r\n\ @param\ distance\ the\ desired\ distance\ in\ pixels\r\n
+comment12.params=distance
+comment12.target=void\ slowMoveHorizontal(int)
+comment12.text=\r\n\ Slowly\ move\ the\ circle\ horizontally.\r\n\ @param\ distance\ the\ desired\ distance\ in\ pixels\r\n
+comment13.params=distance
+comment13.target=void\ slowMoveVertical(int)
+comment13.text=\r\n\ Slowly\ move\ the\ circle\ vertically\r\n\ @param\ distance\ the\ desired\ distance\ in\ pixels\r\n
+comment14.params=newDiameter
+comment14.target=void\ changeSize(int)
+comment14.text=\r\n\ Change\ the\ size.\r\n\ @param\ newDiameter\ the\ new\ size\ (in\ pixels).\ Size\ must\ be\ >\=0.\r\n
+comment15.params=newColor
+comment15.target=void\ changeColor(java.lang.String)
+comment15.text=\r\n\ Change\ the\ color.\ \r\n\ @param\ color\ the\ new\ color.\ Valid\ colors\ are\ "red",\ "yellow",\ "blue",\ "green",\r\n\ "magenta"\ and\ "black".\r\n
+comment16.params=newX\ newY
+comment16.target=void\ changePosition(int,\ int)
+comment16.text=\r\n\ Cambia\ la\ posici\u00F3n\ del\ c\u00EDrculo\ a\ coordenadas\ absolutas.\r\n\ Este\ m\u00E9todo\ coloca\ el\ c\u00EDrculo\ en\ una\ posici\u00F3n\ EXACTA\ en\ p\u00EDxeles,\r\n\ no\ mueve\ relativamente\ como\ moveHorizontal/moveVertical.\r\n\ \r\n\ DIFERENCIA\ CLAVE\:\r\n\ -\ moveHorizontal(50)\ \u2192\ mueve\ 50\ p\u00EDxeles\ desde\ donde\ est\u00E1\ (RELATIVO)\r\n\ -\ changePosition(100,\ 200)\ \u2192\ coloca\ el\ c\u00EDrculo\ en\ (100,\ 200)\ (ABSOLUTO)\r\n\ \r\n\ USO\ EN\ HUNGRYSNAKE\:\r\n\ Cuando\ una\ fruta\ necesita\ aparecer\ en\ una\ celda\ espec\u00EDfica\ del\ tablero,\r\n\ usamos\ changePosition()\ para\ colocarla\ directamente\ en\ esas\ coordenadas\r\n\ sin\ importar\ d\u00F3nde\ estaba\ antes.\r\n\ \r\n\ EJEMPLO\:\r\n\ Circle\ c\ \=\ new\ Circle();\r\n\ c.makeVisible();\r\n\ c.changePosition(100,\ 150);\ //\ Ahora\ est\u00E1\ en\ (100,\ 150)\r\n\ c.changePosition(200,\ 50);\ \ //\ Ahora\ est\u00E1\ en\ (200,\ 50)\r\n\ //\ No\ importa\ d\u00F3nde\ estaba\ antes,\ va\ directamente\ a\ la\ nueva\ posici\u00F3n\r\n\ \r\n\ @param\ newX\ la\ nueva\ posici\u00F3n\ X\ (horizontal)\ en\ p\u00EDxeles\r\n\ @param\ newY\ la\ nueva\ posici\u00F3n\ Y\ (vertical)\ en\ p\u00EDxeles\r\n
+comment2.params=
+comment2.target=void\ makeVisible()
+comment3.params=
+comment3.target=void\ makeInvisible()
+comment4.params=
+comment4.target=void\ draw()
+comment5.params=
+comment5.target=void\ erase()
+comment6.params=
+comment6.target=void\ moveRight()
+comment6.text=\r\n\ Move\ the\ circle\ a\ few\ pixels\ to\ the\ right.\r\n
+comment7.params=
+comment7.target=void\ moveLeft()
+comment7.text=\r\n\ Move\ the\ circle\ a\ few\ pixels\ to\ the\ left.\r\n
+comment8.params=
+comment8.target=void\ moveUp()
+comment8.text=\r\n\ Move\ the\ circle\ a\ few\ pixels\ up.\r\n
+comment9.params=
+comment9.target=void\ moveDown()
+comment9.text=\r\n\ Move\ the\ circle\ a\ few\ pixels\ down.\r\n
+numComments=17

@@ -1,0 +1,26 @@
+#BlueJ class context
+comment0.target=Tower
+comment0.text=\r\n\ Write\ a\ description\ of\ class\ Tower\ here.\r\n\ \r\n\ @author\ Carlos\ Felipe\ Jimenez\ Sposito\r\n\ @version\ 1.0\r\n
+comment1.params=width\ maxHeight
+comment1.target=Tower(int,\ int)
+comment10.params=n
+comment10.target=boolean\ existsNumber(int)
+comment11.params=
+comment11.target=java.util.List\ getElements()
+comment2.params=element
+comment2.target=boolean\ push(StackableElement)
+comment3.params=type
+comment3.target=boolean\ popLastOfType(java.lang.String)
+comment4.params=type\ n
+comment4.target=boolean\ removeByNumber(java.lang.String,\ int)
+comment5.params=
+comment5.target=void\ orderDescending()
+comment6.params=
+comment6.target=void\ reverse()
+comment7.params=
+comment7.target=int\ height()
+comment8.params=
+comment8.target=java.lang.String[][]\ stackingItems()
+comment9.params=
+comment9.target=boolean\ ok()
+numComments=12
