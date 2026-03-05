@@ -17,6 +17,7 @@ public class Tower {
     public Tower(int width, int maxHeight) {
         elements = new ArrayList<>();
         lastOperationOk = true;
+        
     }
 
     public boolean push(StackableElement element) {
