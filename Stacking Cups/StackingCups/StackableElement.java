@@ -1,4 +1,8 @@
 package StackingCups;
+import javax.swing.*;
+import java.util.*;
+import shapes.*;
+
 
 /**
  * Write a description of class StackableElement here.
@@ -12,7 +16,11 @@ public abstract class StackableElement {
     protected int id;
     protected int width;
     protected int height;
-    protected String type;    
+    protected String type;
+    protected int xPosition;
+    protected int yPosition;
+    private boolean isVisible;
+    protected Rectangle StackableElement;
     
     public int getId(){
         return id;
@@ -28,11 +36,23 @@ public abstract class StackableElement {
 
     public abstract String getType();
     
-    public abstract void draw();
+    public abstract void draw(int x, int y);
     
-    public abstract void makeVisible();
+    public void makeVisible(){
+        isVisible = true;
+        draw(xPosition, yPosition); 
+    }
+
+    public void makeInvisible(){
+        isVisible = false;
+        erase();
+    }
     
-    public abstract void makeInvisible();
-    
+    public void erase() {
+        if (StackableElement != null) {
+            StackableElement.makeInvisible();
+            this.isVisible = false;
+        }
+    }
 }
 

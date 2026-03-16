@@ -1,6 +1,8 @@
 package StackingCups;
-
+import javax.swing.*;
 import java.util.*;
+import shapes.*;
+
 
 /**
  * Write a description of class Cup here.
@@ -12,11 +14,15 @@ import java.util.*;
 public class Cup extends StackableElement {
 
     private Lid lid;
+    protected Rectangle cup;
 
     public Cup(int n){
-        id = n;
-        width = 2*n - 1;
-        height = 2*n - 1;
+        this.id = n;
+        this.width = (2*n - 1)*10;
+        this.height = (2*n - 1)*10;
+        this.cup = new Rectangle();
+        this.cup.changeSize(this.height, this.width);
+        
     }
     
     public void setLid(Lid lid) {
@@ -35,6 +41,17 @@ public class Cup extends StackableElement {
     public String getType() {
         return "cup";
     }
+    
+    @Override
+    public void draw(int x, int y) {
+        this.xPosition = x; 
+        this.yPosition = y;
+        if (cup != null) {
+            cup.changePosition(x, y);
+            cup.makeVisible();
+        }
+    }
+    
 }
 
 
