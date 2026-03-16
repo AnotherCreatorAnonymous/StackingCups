@@ -1,7 +1,7 @@
 #BlueJ class context
 comment0.target=Cup
 comment0.text=\r\n\ Write\ a\ description\ of\ class\ Cup\ here.\r\n\ \r\n\ @author\ Carlos\ Felipe\ Jimenez\ Sposito\r\n\ @version\ 1.0\r\n
-comment1.params=number
+comment1.params=n
 comment1.target=Cup(int)
 comment2.params=lid
 comment2.target=void\ setLid(Lid)
@@ -10,7 +10,5 @@ comment3.target=void\ removeLid()
 comment4.params=
 comment4.target=boolean\ hasLid()
 comment5.params=
-comment5.target=Lid\ getLid()
-comment6.params=
-comment6.target=java.lang.String\ getType()
-numComments=7
+comment5.target=java.lang.String\ getType()
+numComments=6

@@ -9,10 +9,13 @@ package StackingCups;
  */
 
 public class Lid extends StackableElement {
-
-    public Lid(int number) {
-        super(number);
+    
+    public Lid(int n){
+        id = n;
+        width = 2*n - 1;
+        height = 1;
     }
+
 
     @Override
     public String getType() {

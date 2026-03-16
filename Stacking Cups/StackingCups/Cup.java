@@ -13,11 +13,12 @@ public class Cup extends StackableElement {
 
     private Lid lid;
 
-    public Cup(int number) {
-        super(number);
-        this.lid = null;
+    public Cup(int n){
+        id = n;
+        width = 2*n - 1;
+        height = 2*n - 1;
     }
-
+    
     public void setLid(Lid lid) {
         this.lid = lid;
     }
@@ -28,10 +29,6 @@ public class Cup extends StackableElement {
 
     public boolean hasLid() {
         return lid != null;
-    }
-
-    public Lid getLid() {
-        return lid;
     }
 
     @Override

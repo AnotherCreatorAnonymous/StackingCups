@@ -9,16 +9,30 @@ package StackingCups;
 
 public abstract class StackableElement {
 
-    protected int number;
-
-    public StackableElement(int number) {
-        this.number = number;
+    protected int id;
+    protected int width;
+    protected int height;
+    protected String type;    
+    
+    public int getId(){
+        return id;
+    }
+    
+    public int getWidth(){
+        return width;
+    }
+    
+    public int getHeight(){
+        return height;
     }
 
-    public int getNumber() {
-        return number;
-    }
-
-    public abstract String getType(); // "cup" o "lid"
+    public abstract String getType();
+    
+    public abstract void draw();
+    
+    public abstract void makeVisible();
+    
+    public abstract void makeInvisible();
+    
 }
 
