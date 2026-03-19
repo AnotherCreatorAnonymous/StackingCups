@@ -20,6 +20,9 @@ public class Canvas{
     // is done on purpose to keep the interface and instance fields of the
     // shape objects in this project clean and simple for educational purposes.
 
+    public static final int CANVAS_WIDTH = 900;
+    public static final int CANVAS_HEIGHT = 900;
+
     private static Canvas canvasSingleton;
 
     /**
@@ -27,7 +30,7 @@ public class Canvas{
      */
     public static Canvas getCanvas(){
         if(canvasSingleton == null) {
-            canvasSingleton = new Canvas("BlueJ Shapes Demo", 600, 1200, 
+            canvasSingleton = new Canvas("Stacking Cups", CANVAS_WIDTH, CANVAS_HEIGHT,
                                          Color.white);
         }
         canvasSingleton.setVisible(true);

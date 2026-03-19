@@ -1,14 +1,11 @@
 package StackingCups;
-import javax.swing.*;
-import java.util.*;
-import shapes.*;
 
 
 /**
  * Write a description of class StackableElement here.
  * 
  * @author Carlos Felipe Jimenez Sposito
- * @version 1.0
+ * @version 2.0
  */
 
 public abstract class StackableElement {
@@ -19,40 +16,56 @@ public abstract class StackableElement {
     protected String type;
     protected int xPosition;
     protected int yPosition;
-    private boolean isVisible;
-    protected Rectangle StackableElement;
     
+    /**
+     * Retorna el tipo concreto del elemento apilable.
+     */
+    public abstract String getType();
+    
+    /**
+     * Dibuja el elemento en la posicion indicada.
+     */
+    public abstract void draw(int x, int y);
+    
+    /**
+     * Borra la representacion visual del elemento.
+     */
+    public abstract void erase();
+    
+    /**
+     * Retorna el identificador unico del elemento.
+     */
     public int getId(){
         return id;
     }
     
+    /**
+     * Retorna el ancho del elemento en pixeles.
+     */
     public int getWidth(){
         return width;
     }
     
+    /**
+     * Retorna la altura del elemento en pixeles.
+     */
     public int getHeight(){
         return height;
     }
-
-    public abstract String getType();
     
-    public abstract void draw(int x, int y);
-    
+    /**
+     * Activa la visibilidad del elemento y lo dibuja en su posicion actual.
+     */
     public void makeVisible(){
-        isVisible = true;
         draw(xPosition, yPosition); 
     }
 
+    /**
+     * Desactiva la visibilidad del elemento y lo borra del canvas.
+     */
     public void makeInvisible(){
-        isVisible = false;
         erase();
     }
     
-    public void erase() {
-        if (StackableElement != null) {
-            StackableElement.makeInvisible();
-            this.isVisible = false;
-        }
-    }
 }
 
