@@ -23,6 +23,7 @@ public class Lid extends StackableElement {
         
         lidShape = new Rectangle();
         lidShape.changeSize(height, width);
+        lidShape.changeColor(Cup.colorForId(n));
     }
 
     /**

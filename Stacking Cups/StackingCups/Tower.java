@@ -2,21 +2,23 @@ package StackingCups;
 import java.util.*;
 import javax.swing.*;
 import shapes.*;
-    
+
 /**
- * Write a description of class Tower here.
- * 
+ * Simula visualmente una torre de elementos apilables (tazas y tapas).
+ *
+ * La clase administra el estado interno de la torre, sus reglas de apilado
+ * y la representacion grafica usando el paquete shapes.
+ *
  * @author Carlos Felipe Jimenez Sposito
- * @version 1.0
+ * @version 2.0
  */
-    
-    public class Tower {
-    
+public class Tower {
+
     private final List<StackableElement> elements;
     private boolean lastOperationOk;
     private final int width;
     private boolean isVisible;
-    
+
     private final StackableElement[][] grid;
     private final int rows;
     private final int cols;
@@ -32,23 +34,36 @@ import shapes.*;
     private final int originX;
     private final int baseY;
     private final int meterX;
-    
+    private final int sceneWidth;
+    private final int sceneHeight;
     
     /**
-     * Constructor de la clase torre
+     * OPTIMIZACION: Cachea las posiciones espaciales logicas [startX, level]
+     * de cada elemento para evitar recorrer la matriz grid en O(rows x cols).
+     * Se actualiza en placeAtLevel() y se limpia en clearGrid().
+     */
+    private final Map<StackableElement, int[]> elementPositions = new HashMap<>();
+
+    /**
+     * Crea una torre vacia por dimensiones logicas.
+     *
+     * @param width Ancho maximo en celdas logicas de 1 cm.
+     * @param maxHeight Altura maxima en niveles logicos de 1 cm.
      */
     public Tower(int width, int maxHeight) {
         elements = new ArrayList<>();
-        this. width = width;
-        
-        this.cols = width;         // ancho lógico
-        this.rows = maxHeight;     // altura máxima
+        this.width = Math.max(1, width);
+        this.cols = this.width;
+        this.rows = Math.max(1, maxHeight);
+        this.lastOperationOk = false;
+        this.isVisible = false;
+
         grid = new StackableElement[rows][cols];
 
         int towerPixelWidth = cols * CELL_SIZE;
         int meterPixelWidth = METER_BAR_WIDTH + 12;
-        int sceneWidth = towerPixelWidth + METER_GAP + meterPixelWidth;
-        int sceneHeight = rows * CELL_SIZE + BASE_THICKNESS;
+        sceneWidth = towerPixelWidth + METER_GAP + meterPixelWidth;
+        sceneHeight = rows * CELL_SIZE + BASE_THICKNESS;
 
         originX = Math.max(0, (Canvas.CANVAS_WIDTH - sceneWidth) / 2);
         int originY = Math.max(0, (Canvas.CANVAS_HEIGHT - sceneHeight) / 2);
@@ -75,275 +90,323 @@ import shapes.*;
         baseMarker.changeColor("maroon");
     }
 
-    
     /**
-     * ===================================================================
-     * ManageCup
-     * ===================================================================
+     * Crea un simulador vacio dimensionado por cantidad objetivo de tazas.
+     *
+     * @param cups Cantidad objetivo usada para calcular ancho y altura inicial.
      */
+    public Tower(int cups){
+        this(Math.max(1, (2 * Math.max(1, cups)) - 1), Math.max(2, Math.max(1, cups) * 2));
+    }
+
     /**
-     * Agrega una copa a la torre si cumple validaciones de tamano, id y espacio.
+     * Agrega una taza por identificador si respeta las reglas de negocio.
+     *
+     * @param n Identificador positivo de la taza.
      */
     public void pushCup(int n){
-        int w = (2*n - 1);
-
-        if(!validateElement(n)){
-            return;
-        }
-    
-        int level = findLevelForCup(w);
-    
-        if(level == -1){
-            lastOperationOk = false;
-            JOptionPane.showMessageDialog(null, "No hay espacio para la copa");
-            return;
-        }
-    
-        Cup cup = new Cup(n);
-        elements.add(cup);
-    
-        placeCupInGrid(cup, level, w);
-        repaint();
-        lastOperationOk = true;
+        addElement("cup", n);
     }
-    
+
     /**
-     * Elimina la ultima copa agregada a la torre.
+     * Elimina la ultima taza agregada.
      */
     public void popCup(){
-        validateList("cup");
+        removeLastByType("cup");
     }
-    
+
     /**
-     * Elimina una copa especifica por id.
+     * Elimina una taza especifica por identificador.
+     *
+     * @param n Identificador de la taza a eliminar.
      */
     public void removeCup(int n){
-        removeElement("cup", n);
+        removeByTypeAndId("cup", n);
     }
-    
+
     /**
-     * ===================================================================
-     * ManageLid
-     * ===================================================================
-     */
-    
-    /**
-     * Agrega una tapa a la torre si cumple validaciones de tamano, id y espacio.
+     * Agrega una tapa por identificador si respeta las reglas de negocio.
+     *
+     * @param n Identificador positivo de la tapa.
      */
     public void pushLid(int n) {
-
-        if (validateElement(n)){
-            int w = (2*n - 1);
-            int level = findLevelForCup(w);
-
-            if(level == -1){
-                lastOperationOk = false;
-                JOptionPane.showMessageDialog(null, "No hay espacio para la tapa");
-                return;
-            }
-
-            Lid lid= new Lid(n);
-            elements.add(lid);
-            placeCupInGrid(lid, level, w);
-            repaint();
-            lastOperationOk = true;
-        }
+        addElement("lid", n);
     }
-    
+
     /**
-     * Elimina la ultima tapa agregada a la torre.
+     * Elimina la ultima tapa agregada.
      */
     public void popLid(){
-        validateList("lid");
-    }
-    
-    /**
-     * Elimina una tapa especifica por id.
-     */
-    public void removeLid(int n){
-        removeElement("lid", n);
-    }
-    
-    /**
-     * ===================================================================
-     * Manage Aditions
-     * ===================================================================
-     */
-    /**
-     * Valida que un elemento pueda entrar en la torre y que su id no exista.
-     */
-    private boolean validateElement(int n){
-        
-        if (2*n-1 > width){
-            lastOperationOk = false;
-            JOptionPane.showMessageDialog(null, "El elemento excede el ancho de la torre");
-            return false;
-        }
-        for (StackableElement e: elements){
-            if (e.getId() == n){
-                lastOperationOk = false;
-                JOptionPane.showMessageDialog(null, "Ya existe un elemento con ese id");
-                return false;
-            }
-        }
-        lastOperationOk = true;
-        return true;
-    
-    }
-    
-    /**
-     * Valida que exista al menos un elemento del tipo solicitado para eliminar.
-     */
-    private boolean validateList(String type){
-        if (!elements.isEmpty()){
-            return deleteLastElement(type);
-        }
-        else{
-            lastOperationOk = false;
-            JOptionPane.showMessageDialog(null, "La torre esta vacia");
-            return false;
-        }
-    }
-    
-    /**
-     * Elimina el ultimo elemento que coincida con el tipo solicitado.
-     */
-    private boolean deleteLastElement(String type){
-        boolean found = false;
-        for (int e = elements.size() - 1; e >= 0; e--){
-            StackableElement actualElement = elements.get(e);
-            if (actualElement.getType().equalsIgnoreCase(type)){
-                actualElement.makeInvisible();
-                elements.remove(e);
-                removeFromGrid(actualElement);
-                repaint();
-                found = true;
-                lastOperationOk = true;
-                break;
-            }
-        }
-        if(!found){
-            lastOperationOk = false;
-            JOptionPane.showMessageDialog(null, "No se encontró un elemento tipo: " + type);
-        }
-        return found;
-    }
-    
-    /**
-     * Elimina un elemento por tipo e id manteniendo consistencia en lista y grilla.
-     */
-    private void removeElement(String type, int n){
-        for (int e = 0; e < elements.size(); e++){
-            StackableElement actualElement = elements.get(e);
-            if (actualElement.getType().equalsIgnoreCase(type) && actualElement.getId() == n){
-                actualElement.makeInvisible();
-                elements.remove(e);
-                removeFromGrid(actualElement);
-                repaint();
-                lastOperationOk = true;
-                return;
-            }
-        }
-        lastOperationOk = false;
-        JOptionPane.showMessageDialog(null, "No se encontró el elemento a eliminar");
+        removeLastByType("lid");
     }
 
     /**
-     * ===================================================================
-     * Reorganize tower
-     * ===================================================================
+     * Elimina una tapa especifica por identificador.
+     *
+     * @param n Identificador de la tapa a eliminar.
      */
-    
+    public void removeLid(int n){
+        removeByTypeAndId("lid", n);
+    }
+
     /**
-     * Ordena los elementos por ancho y luego por altura.
+     * Ordena la torre de mayor a menor base y pone la tapa encima de su taza.
+     * OPTIMIZACION: No sincroniza links aqui; solo reordena la lista.
      */
     public void orderTower(){
-        for(int e = 0; e < elements.size() - 1; e++){
-            for(int n = e + 1; n < elements.size(); n++){
-                if ((elements.get(e).getWidth() > elements.get(n).getWidth()) || (elements.get(e).getWidth() == elements.get(n).getWidth() && elements.get(e).getHeight() > elements.get(n).getHeight())){
-                    StackableElement temp = elements.get(n);
-                    elements.set(n, elements.get(e));
-                    elements.set(e, temp);
-                }
-            }
+        List<StackableElement> ordered = buildOrderedByBase();
+        elements.clear();
+        elements.addAll(ordered);
+        
+        if(!rebuildGridFromElements()){
+            fail("No fue posible ordenar toda la torre");
+            return;
         }
-        lastOperationOk = rebuildGridFromElements();
+        
+        lastOperationOk = true;
         repaint();
     }
-    
+
     /**
-     * Invierte el orden actual de los elementos.
+     * Invierte el orden actual de la lista de elementos.
+     * OPTIMIZACION: No sincroniza links aqui; solo reordena la lista.
      */
     public void reverseTower(){
-        for(int e = 0; e < elements.size()/2; e++){
-            StackableElement temp = elements.get((elements.size() - 1) - e);
-            elements.set((elements.size() - 1) - e, elements.get(e));
-            elements.set(e, temp);
+        List<StackableElement> reversed = new ArrayList<>(elements);
+        Collections.reverse(reversed);
+        elements.clear();
+        elements.addAll(reversed);
+        
+        if(!rebuildGridFromElements()){
+            fail("No fue posible invertir toda la torre");
+            return;
         }
-        lastOperationOk = rebuildGridFromElements();
+        
+        lastOperationOk = true;
         repaint();
     }
-        
+
     /**
-     * ===================================================================
-     * Consult Information
-     * ===================================================================
+     * Intercambia dos elementos identificados por tipo e id.
+     * OPTIMIZACION: No sincroniza links aqui; solo reordena la lista.
+     *
+     * @param o1 Descriptor del primer elemento con formato [tipo, id].
+     * @param o2 Descriptor del segundo elemento con formato [tipo, id].
      */
+    public void swap(String[] o1, String[] o2){
+        if(!isValidDescriptor(o1) || !isValidDescriptor(o2)){
+            fail("Los datos para intercambiar son invalidos");
+            return;
+        }
+
+        StackableElement elem1 = findElement(o1[0], Integer.parseInt(o1[1]));
+        StackableElement elem2 = findElement(o2[0], Integer.parseInt(o2[1]));
+
+        if(elem1 == null || elem2 == null){
+            fail("No se encontraron los elementos a intercambiar");
+            return;
+        }
+
+        int idx1 = elements.indexOf(elem1);
+        int idx2 = elements.indexOf(elem2);
+        Collections.swap(elements, idx1, idx2);
+        
+        if(!rebuildGridFromElements()){
+            Collections.swap(elements, idx1, idx2);
+            rebuildGridFromElements();
+            fail("No fue posible aplicar el intercambio");
+            return;
+        }
+        
+        lastOperationOk = true;
+        repaint();
+    }
+
     /**
-     * Retorna la cantidad de elementos actualmente almacenados.
+     * Empareja tapas y tazas del mismo numero para que se dibujen juntas.
+     * OPTIMIZACION: Sincroniza links una sola vez antes de evaluar; luego reordena sin resincronizar.
+     */
+    public void cover(){
+        synchronizeCupLidLinks();
+
+        int covered = lidedCups().length;
+        if(covered == 0){
+            fail("No hay tazas con tapa para cubrir");
+            return;
+        }
+
+        List<StackableElement> coveredOrder = buildCoveredOrder();
+        elements.clear();
+        elements.addAll(coveredOrder);
+        
+        if(!rebuildGridFromElements()){
+            fail("No fue posible cubrir toda la torre");
+            return;
+        }
+        
+        lastOperationOk = true;
+        repaint();
+    }
+
+    /**
+     * Busca el intercambio que mayor reduccion de altura produce.
+     * OPTIMIZACION: Desactiva temporalmente el renderizado durante la simulacion de fuerza bruta.
+     * Sincroniza links una sola vez antes del bucle y lo deja activo para las evaluaciones.
+     *
+     * @return Matriz de 2x2 con [tipo,id] de los elementos a intercambiar.
+     */
+    public String[][] swapToReduce(){
+        String[][] result = new String[2][2];
+
+        if(elements.size() < 2){
+            lastOperationOk = false;
+            return result;
+        }
+
+        // Desactivar renderizado durante simulacion de fuerza bruta
+        boolean wasVisible = isVisible;
+        isVisible = false;
+
+        // Sincronizar links una sola vez antes del bucle
+        synchronizeCupLidLinks();
+        
+        int baseHeight = towerHeightLevels();
+        int bestReduction = 0;
+        int bestI = -1;
+        int bestJ = -1;
+
+        for(int i = 0; i < elements.size(); i++){
+            for(int j = i + 1; j < elements.size(); j++){
+                Collections.swap(elements, i, j);
+                boolean valid = rebuildGridFromElements();
+
+                if(valid){
+                    int newHeight = towerHeightLevels();
+                    int reduction = baseHeight - newHeight;
+                    if(reduction > bestReduction){
+                        bestReduction = reduction;
+                        bestI = i;
+                        bestJ = j;
+                    }
+                }
+
+                Collections.swap(elements, i, j);
+                rebuildGridFromElements();
+            }
+        }
+
+        // Restaurar visibilidad
+        isVisible = wasVisible;
+        rebuildGridFromElements();
+
+        if(bestI == -1 || bestJ == -1){
+            lastOperationOk = false;
+            return result;
+        }
+
+        StackableElement e1 = elements.get(bestI);
+        StackableElement e2 = elements.get(bestJ);
+        result[0][0] = e1.getType();
+        result[0][1] = String.valueOf(e1.getId());
+        result[1][0] = e2.getType();
+        result[1][1] = String.valueOf(e2.getId());
+
+        lastOperationOk = true;
+        if(wasVisible) repaint();
+        return result;
+    }
+
+    /**
+     * Retorna la cantidad de elementos registrados en la torre.
+     *
+     * @return Numero de elementos (tazas y tapas) almacenados.
      */
     public int height() {
         return elements.size();
     }
 
     /**
-     * Retorna el resultado de la ultima operacion realizada.
+     * Retorna el resultado de la ultima operacion ejecutada.
+     *
+     * @return true si la ultima operacion fue exitosa; false en caso contrario.
      */
     public boolean ok(){
         return lastOperationOk;
     }
 
     /**
-     * Retorna un arreglo con tipo e id de cada elemento en orden actual.
+     * Retorna los elementos de base a cima en formato [tipo,id].
+     *
+     * @return Matriz con el estado de la torre en minusculas y orden fisico.
      */
     public String[][] stackingItems() {
+        List<StackableElement> ordered = gridElementsFromBaseToTop();
+        String[][] result = new String[ordered.size()][2];
 
-        String[][] result = new String[elements.size()][2];
-
-        for (int i = 0; i < elements.size(); i++) {
-            result[i][0] = elements.get(i).getType();
-            result[i][1] = String.valueOf(elements.get(i).getId());
+        for (int i = 0; i < ordered.size(); i++) {
+            StackableElement e = ordered.get(i);
+            result[i][0] = e.getType().toLowerCase();
+            result[i][1] = String.valueOf(e.getId());
         }
 
         return result;
     }
 
     /**
+     * Retorna los ids de tazas cubiertas, ordenados de menor a mayor.
+     *
+     * @return Arreglo ascendente con ids de tazas que tienen tapa asociada.
+     */
+    public int[] lidedCups(){
+        List<Integer> ids = new ArrayList<>();
+        synchronizeCupLidLinks();
+
+        for(StackableElement element : elements){
+            if(element instanceof Cup cup){
+                if(cup.hasLid()){
+                    ids.add(cup.getId());
+                }
+            }
+        }
+
+        Collections.sort(ids);
+
+        int[] result = new int[ids.size()];
+        for(int i = 0; i < ids.size(); i++){
+            result[i] = ids.get(i);
+        }
+        return result;
+    }
+
+    /**
      * Retorna la lista interna de elementos de la torre.
+     *
+     * @return Lista mutable de elementos del estado actual.
      */
     public List<StackableElement> getElements() {
         return elements;
     }
-    
+
     /**
-     * ===================================================================
-     * Set Visibility
-     * ===================================================================
-     */
-    /**
-     * Hace visible la torre y repinta su estado actual.
+     * Vuelve visible la torre si su escena cabe dentro del canvas.
      */
     public void makeVisible(){
+        if(sceneWidth > Canvas.CANVAS_WIDTH || sceneHeight > Canvas.CANVAS_HEIGHT){
+            fail("La torre excede el tamano visible del canvas");
+            return;
+        }
+
         isVisible = true;
         repaint();
+        lastOperationOk = true;
     }
-    
+
     /**
-     * Hace invisible la torre y borra sus elementos del canvas.
+     * Oculta la torre y limpia su representacion en canvas.
      */
     public void makeInvisible() {
         for (StackableElement e : elements) {
-            e.erase(); 
+            e.erase();
         }
 
         for(int level = 0; level < rows; level++){
@@ -355,62 +418,385 @@ import shapes.*;
 
         this.isVisible = false;
     }
-    
+
     /**
-     * ===================================================================
-     * Exit simulator
-     * ===================================================================
-     */
-    /**
-     * Cierra el simulador de forma controlada.
+     * Cierra el simulador con confirmacion de usuario.
      */
     public void exit() {
         makeInvisible();
 
-        int confirm = JOptionPane.showConfirmDialog(null, 
-            "¿Deseas cerrar el simulador de Stacking Cups?", 
-            "Cerrar Simulador", 
+        int confirm = JOptionPane.showConfirmDialog(null,
+            "¿Deseas cerrar el simulador de Stacking Cups?",
+            "Cerrar Simulador",
             JOptionPane.YES_NO_OPTION);
-            
+
         if (confirm == JOptionPane.YES_OPTION) {
-            System.exit(0); 
+            System.exit(0);
         }
-        
+
         lastOperationOk = true;
     }
-    
+
     /**
-     * ===================================================================
-     * Painting
-     * ===================================================================
+     * Metodo legado para configurar el simulador y dejar la torre vacia.
+     *
+     * @param cups Cantidad objetivo de tazas para validar capacidad actual.
      */
-    
+    public void tower(int cups){
+        for(StackableElement element : elements){
+            element.makeInvisible();
+        }
+
+        elements.clear();
+        synchronizeCupLidLinks();
+        clearGrid();
+        repaint();
+
+        if(cups < 0){
+            fail("La cantidad de tazas no puede ser negativa");
+            return;
+        }
+
+        boolean fitsWidth = (2 * Math.max(1, cups)) - 1 <= width;
+        boolean fitsHeight = Math.max(1, cups) <= rows;
+        lastOperationOk = fitsWidth && fitsHeight;
+
+        if(!lastOperationOk){
+            JOptionPane.showMessageDialog(null, "El simulador actual no soporta " + cups + " tazas");
+        }
+    }
+
     /**
-     * Redibuja todos los elementos visibles segun su posicion en la grilla.
+     * Agrega un elemento por tipo respetando validaciones de dominio.
+     *
+     * @param type Tipo de elemento: cup o lid.
+     * @param n Identificador del elemento.
      */
-    public void repaint(){
-        if(!isVisible) return;
-    
-        // limpiar
+    private void addElement(String type, int n){
+        if(!validatePositiveId(n)){
+            return;
+        }
+        if(!validateWidthForId(n)){
+            return;
+        }
+        if(existsTypeWithId(type, n)){
+            fail("Ya existe un elemento de tipo " + type + " con id " + n);
+            return;
+        }
+
+        StackableElement element = createElement(type, n);
+        if(element == null){
+            fail("Tipo de elemento invalido");
+            return;
+        }
+
+        elements.add(element);
+        synchronizeCupLidLinks();
+
+        if(!rebuildGridFromElements()){
+            elements.remove(element);
+            synchronizeCupLidLinks();
+            rebuildGridFromElements();
+            fail("No hay espacio para el elemento solicitado");
+            return;
+        }
+
+        lastOperationOk = true;
+        repaint();
+    }
+
+    /**
+     * Crea una instancia de elemento por tipo.
+     *
+     * @param type Tipo de elemento a crear.
+     * @param id Identificador del elemento.
+     * @return Instancia creada o null si el tipo no existe.
+     */
+    private StackableElement createElement(String type, int id){
+        if("cup".equalsIgnoreCase(type)){
+            return new Cup(id);
+        }
+        if("lid".equalsIgnoreCase(type)){
+            return new Lid(id);
+        }
+        return null;
+    }
+
+    /**
+     * Elimina el elemento mas alto encontrado del tipo solicitado.
+     *
+     * @param type Tipo de elemento a eliminar.
+     */
+    private void removeLastByType(String type){
+        StackableElement topElement = findTopElementByType(type);
+        if(topElement == null){
+            fail("No se encontro un elemento tipo: " + type);
+            return;
+        }
+
+        topElement.makeInvisible();
+        elements.remove(topElement);
+        synchronizeCupLidLinks();
+        rebuildGridFromElements();
+        lastOperationOk = true;
+        repaint();
+    }
+
+    /**
+     * Elimina un elemento por tipo e identificador.
+     *
+     * @param type Tipo del elemento.
+     * @param id Identificador a eliminar.
+     */
+    private void removeByTypeAndId(String type, int id){
+        StackableElement target = findElement(type, id);
+        if(target == null){
+            fail("No se encontro el elemento a eliminar");
+            return;
+        }
+
+        target.makeInvisible();
+        elements.remove(target);
+        synchronizeCupLidLinks();
+        rebuildGridFromElements();
+        lastOperationOk = true;
+        repaint();
+    }
+
+    /**
+     * Construye un orden de mayor a menor base y tapa sobre taza del mismo id.
+     *
+     * @return Lista ordenada lista para reconstruir la torre.
+     */
+    private List<StackableElement> buildOrderedByBase(){
+        Map<Integer, Cup> cups = new HashMap<>();
+        Map<Integer, Lid> lids = new HashMap<>();
+
+        for(StackableElement e : elements){
+            if(e instanceof Cup cup){
+                cups.put(e.getId(), cup);
+            }
+            else if(e instanceof Lid lid){
+                lids.put(e.getId(), lid);
+            }
+        }
+
+        Set<Integer> allIds = new TreeSet<>(Collections.reverseOrder());
+        allIds.addAll(cups.keySet());
+        allIds.addAll(lids.keySet());
+
+        List<StackableElement> ordered = new ArrayList<>();
+        for(int id : allIds){
+            Cup cup = cups.get(id);
+            Lid lid = lids.get(id);
+
+            if(cup != null){
+                ordered.add(cup);
+            }
+            if(lid != null){
+                ordered.add(lid);
+            }
+        }
+
+        return ordered;
+    }
+
+    /**
+     * Construye un orden que prioriza taza seguida por su tapa asociada.
+     *
+     * @return Lista con pares taza-tapa ya acoplados.
+     */
+    private List<StackableElement> buildCoveredOrder(){
+        List<StackableElement> coveredOrder = new ArrayList<>();
+        Set<StackableElement> added = new HashSet<>();
+
+        addCupsAndLinkedLids(coveredOrder, added);
+        addRemainingElements(coveredOrder, added);
+
+        return coveredOrder;
+    }
+
+    /**
+     * Agrega cada taza y su tapa enlazada al orden de cobertura.
+     *
+     * @param coveredOrder Lista destino del nuevo orden.
+     * @param added Conjunto de elementos ya agregados.
+     */
+    private void addCupsAndLinkedLids(List<StackableElement> coveredOrder, Set<StackableElement> added){
+        for(StackableElement element : elements){
+            if(element instanceof Cup cup){
+                addIfMissing(cup, coveredOrder, added);
+                if(cup.hasLid()){
+                    Lid lid = cup.getLid();
+                    if(lid != null){
+                        addIfMissing(lid, coveredOrder, added);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Agrega al final los elementos que no quedaron en la primera pasada.
+     *
+     * @param coveredOrder Lista destino del nuevo orden.
+     * @param added Conjunto de elementos ya agregados.
+     */
+    private void addRemainingElements(List<StackableElement> coveredOrder, Set<StackableElement> added){
+        for(StackableElement element : elements){
+            addIfMissing(element, coveredOrder, added);
+        }
+    }
+
+    /**
+     * Agrega un elemento si aun no fue agregado al orden destino.
+     *
+     * @param element Elemento candidato a agregar.
+     * @param target Lista destino.
+     * @param added Conjunto de control de duplicados.
+     */
+    private void addIfMissing(StackableElement element, List<StackableElement> target, Set<StackableElement> added){
+        if(!added.contains(element)){
+            target.add(element);
+            added.add(element);
+        }
+    }
+
+    /**
+     * Sincroniza el enlace 1 a 1 entre tazas y tapas del mismo id.
+     */
+    private void synchronizeCupLidLinks(){
+        Map<Integer, Lid> lidsById = new HashMap<>();
+
+        for(StackableElement element : elements){
+            if(element instanceof Lid lid){
+                lidsById.put(element.getId(), lid);
+            }
+        }
+
+        for(StackableElement element : elements){
+            if(element instanceof Cup cup){
+                cup.setLid(lidsById.get(cup.getId()));
+            }
+        }
+    }
+
+    /**
+     * Busca un elemento por tipo e id.
+     *
+     * @param type Tipo esperado del elemento.
+     * @param id Identificador del elemento.
+     * @return Elemento encontrado o null si no existe.
+     */
+    private StackableElement findElement(String type, int id){
+        for(StackableElement element : elements){
+            if(element.getType().equalsIgnoreCase(type) && element.getId() == id){
+                return element;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Valida un descriptor de intercambio [tipo,id].
+     *
+     * @param descriptor Arreglo esperado con dos posiciones.
+     * @return true si el descriptor es valido; false en caso contrario.
+     */
+    private boolean isValidDescriptor(String[] descriptor){
+        if(descriptor == null || descriptor.length != 2){
+            return false;
+        }
+
+        if(descriptor[0] == null || descriptor[1] == null){
+            return false;
+        }
+
+        try{
+            Integer.parseInt(descriptor[1]);
+        }
+        catch(NumberFormatException ignored){
+            return false;
+        }
+
+        return descriptor[0].equalsIgnoreCase("cup") || descriptor[0].equalsIgnoreCase("lid");
+    }
+
+    /**
+     * Valida que el id sea positivo.
+     *
+     * @param n Identificador a validar.
+     * @return true si el id es valido; false en caso contrario.
+     */
+    private boolean validatePositiveId(int n){
+        if(n <= 0){
+            fail("El identificador debe ser mayor que cero");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Valida que el ancho del elemento por id quepa en la torre.
+     *
+     * @param n Identificador usado para calcular el ancho logico.
+     * @return true si cabe; false en caso contrario.
+     */
+    private boolean validateWidthForId(int n){
+        int logicalWidth = (2 * n) - 1;
+        if(logicalWidth > width){
+            fail("El elemento excede el ancho de la torre");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Indica si ya existe un elemento del mismo tipo e id.
+     *
+     * @param type Tipo a comparar.
+     * @param id Identificador a comparar.
+     * @return true si ya existe una coincidencia; false si no existe.
+     */
+    private boolean existsTypeWithId(String type, int id){
+        return findElement(type, id) != null;
+    }
+
+    /**
+     * Marca una operacion como fallida y notifica al usuario si aplica.
+     *
+     * @param message Mensaje descriptivo del fallo.
+     */
+    private void fail(String message){
+        lastOperationOk = false;
+        if(isVisible){
+            JOptionPane.showMessageDialog(null, message);
+        }
+    }
+
+    /**
+     * Redibuja todos los elementos visibles segun su posicion actual.
+     * OPTIMIZACION: Itera sobre elements en O(N) en lugar de O(rows x cols),
+     * obteniendo coordenadas directamente del cache elementPositions.
+     */
+    private void repaint(){
+        if(!isVisible){
+            return;
+        }
+
         for(StackableElement e : elements){
             e.erase();
         }
-    
-        Set<StackableElement> drawn = new HashSet<>();
-    
-        for(int y = rows - 1; y >= 0; y--){
-            for(int x = 0; x < cols; x++){
-    
-                StackableElement e = grid[y][x];
-    
-                if(e != null && !drawn.contains(e)){
-    
-                    int pixelX = originX + (x * CELL_SIZE);
-                    int pixelY = levelToPixelY(y, e.getHeight());
-    
-                    e.draw(pixelX, pixelY);
-                    drawn.add(e);
-                }
+
+        // OPTIMIZACION: Usar cache de posiciones en lugar de buscar en grid
+        for(StackableElement element : elements){
+            int[] pos = elementPositions.get(element);
+            if(pos != null){
+                int startX = pos[0];
+                int level = pos[1];
+                int pixelX = originX + (startX * CELL_SIZE);
+                int pixelY = levelToPixelY(level, element.getHeight());
+                element.draw(pixelX, pixelY);
             }
         }
 
@@ -419,7 +805,7 @@ import shapes.*;
     }
 
     /**
-     * Dibuja y mantiene visible la base fija de la torre.
+     * Dibuja la base de referencia de la torre.
      */
     private void drawBase(){
         baseLine.changePosition(originX, baseY);
@@ -430,7 +816,7 @@ import shapes.*;
     }
 
     /**
-     * Dibuja un medidor lateral de altura con barras y un puntero del nivel actual.
+     * Dibuja el medidor lateral de altura sin valores de texto.
      */
     private void drawHeightMeter(){
         int currentHeight = towerHeightLevels();
@@ -457,8 +843,11 @@ import shapes.*;
     }
 
     /**
-     * Convierte un nivel logico de la grilla a coordenada Y en pixeles.
-     * El fondo del elemento queda anclado al nivel para evitar dibujar bajo la base.
+     * Convierte un nivel logico de grilla a coordenada Y en pixeles.
+     *
+     * @param level Nivel logico en grilla.
+     * @param elementHeight Altura del elemento en pixeles.
+     * @return Coordenada Y de dibujo para el elemento.
      */
     private int levelToPixelY(int level, int elementHeight){
         int levelsFromBase = (rows - 1) - level;
@@ -466,115 +855,269 @@ import shapes.*;
     }
 
     /**
-     * Retorna la altura fisica actual de la torre medida en niveles de grilla.
+     * Calcula la altura fisica actual de la torre en niveles logicos.
+     * OPTIMIZACION: Evalua el nivel minimo en elementPositions en O(N)
+     * en lugar de buscar en toda la grid en O(rows x cols).
+     *
+     * @return Altura ocupada por la torre en niveles de la grilla.
      */
     private int towerHeightLevels(){
-        for(int y = 0; y < rows; y++){
-            for(int x = 0; x < cols; x++){
-                if(grid[y][x] != null){
-                    return rows - y;
-                }
-            }
+        if(elementPositions.isEmpty()){
+            return 0;
         }
-        return 0;
+        
+        int minLevel = Integer.MAX_VALUE;
+        for(int[] pos : elementPositions.values()){
+            minLevel = Math.min(minLevel, pos[1]);
+        }
+        
+        return minLevel == Integer.MAX_VALUE ? 0 : rows - minLevel;
     }
-    
-    /**
-     * Busca el nivel mas bajo posible para ubicar un elemento de ancho dado.
-     */
-    private int findLevelForCup(int cupWidth){
-        int startX = (cols - cupWidth) / 2;
 
-        if(startX < 0 || startX + cupWidth > cols){
+    /**
+     * Busca el nivel mas bajo valido para un ancho logico dado.
+     *
+     * @param logicalWidth Ancho logico del elemento en celdas.
+     * @return Nivel encontrado o -1 si no existe un nivel valido.
+     */
+    private int findLevelForWidth(int logicalWidth){
+        int startX = startXForWidth(logicalWidth);
+
+        if(startX < 0 || startX + logicalWidth > cols){
             return -1;
         }
-    
+
         for(int level = rows - 1; level >= 0; level--){
-            if(canPlace(level, startX, cupWidth) && hasSupport(level, startX, cupWidth)){
+            if(canPlace(level, startX, logicalWidth) && hasSupport(level, startX, logicalWidth)){
                 return level;
             }
         }
-        return -1; // no cabe
+        return -1;
     }
-    
+
     /**
-     * Verifica si un rango horizontal esta libre en un nivel de la grilla.
+     * Retorna el inicio horizontal centrado para un ancho logico.
+     *
+     * @param logicalWidth Ancho en celdas del elemento.
+     * @return Posicion X inicial para ubicar el elemento centrado.
      */
-    private boolean canPlace(int level, int startX, int width){
-        for(int x = startX; x < startX + width; x++){
+    private int startXForWidth(int logicalWidth){
+        return (cols - logicalWidth) / 2;
+    }
+
+    /**
+     * Verifica si una franja horizontal esta libre en un nivel de grilla.
+     *
+     * @param level Nivel de la grilla.
+     * @param startX Posicion inicial horizontal.
+     * @param logicalWidth Ancho en celdas.
+     * @return true si se puede ubicar; false si hay colision.
+     */
+    private boolean canPlace(int level, int startX, int logicalWidth){
+        if(level < 0 || level >= rows){
+            return false;
+        }
+
+        for(int x = startX; x < startX + logicalWidth; x++){
             if(grid[level][x] != null){
                 return false;
             }
         }
         return true;
     }
-    
+
     /**
      * Verifica que el elemento tenga soporte completo debajo de su base.
+     *
+     * @param level Nivel donde se desea ubicar el elemento.
+     * @param startX Posicion inicial horizontal.
+     * @param logicalWidth Ancho en celdas.
+     * @return true si el soporte es valido; false en caso contrario.
      */
-    private boolean hasSupport(int level, int startX, int width){
-    
-        // Si está en el piso, siempre válido
+    private boolean hasSupport(int level, int startX, int logicalWidth){
         if(level == rows - 1){
             return true;
         }
-    
-        // Verifica que haya algo debajo en TODA la base
-        for(int x = startX; x < startX + width; x++){
+
+        for(int x = startX; x < startX + logicalWidth; x++){
             if(grid[level + 1][x] == null){
                 return false;
             }
         }
         return true;
     }
-    
+
     /**
-     * Marca en la grilla las celdas ocupadas por un elemento.
+     * Ubica un elemento en un nivel especifico de la grilla.
+     * OPTIMIZACION: Cachea la posicion logica [startX, level] en elementPositions.
+     *
+     * @param element Elemento a ubicar.
+     * @param level Nivel destino.
+     * @param logicalWidth Ancho logico en celdas.
      */
-    private void placeCupInGrid(StackableElement cup, int level, int width){
-        int startX = (cols - width) / 2;
-    
-        for(int x = startX; x < startX + width; x++){
-            grid[level][x] = cup;
+    private void placeAtLevel(StackableElement element, int level, int logicalWidth){
+        int startX = startXForWidth(logicalWidth);
+
+        for(int x = startX; x < startX + logicalWidth; x++){
+            grid[level][x] = element;
         }
-    }
-    
-    /**
-     * Elimina de la grilla todas las celdas asociadas a un elemento.
-     */
-    private void removeFromGrid(StackableElement element){
-        for(int y = 0; y < rows; y++){
-            for(int x = 0; x < cols; x++){
-                if(grid[y][x] == element){
-                    grid[y][x] = null;
-                }
-            }
-        }
+        
+        // OPTIMIZACION: Guardar posicion en cache para repaint O(N)
+        elementPositions.put(element, new int[]{startX, level});
     }
 
     /**
-     * Reconstruye la grilla completa a partir del orden actual de la lista.
+     * Reconstruye la grilla completa desde la lista de elementos.
+     *
+     * @return true si toda la reconstruccion fue exitosa; false si falla.
      */
     private boolean rebuildGridFromElements(){
         clearGrid();
+        Set<StackableElement> placed = new HashSet<>();
 
-        for(StackableElement element : elements){
-            int logicalWidth = element.getWidth() / CELL_SIZE;
-            int level = findLevelForCup(logicalWidth);
-
-            if(level == -1){
-                JOptionPane.showMessageDialog(null, "No fue posible reorganizar toda la torre");
+        while(placed.size() < elements.size()){
+            StackableElement element = nextElementForPlacement(placed);
+            if(element == null){
                 return false;
             }
 
-            placeCupInGrid(element, level, logicalWidth);
+            if(element instanceof Cup cup && cup.hasLid() && elements.contains(cup.getLid())){
+                if(!placeCupWithLid(cup, cup.getLid())){
+                    return false;
+                }
+                placed.add(cup);
+                placed.add(cup.getLid());
+            }
+            else{
+                if(!placeSingleElement(element)){
+                    return false;
+                }
+                placed.add(element);
+            }
         }
 
         return true;
     }
 
     /**
-     * Limpia por completo el estado ocupado de la grilla.
+     * Busca el siguiente elemento a ubicar usando solo la lista principal.
+     *
+     * Prioriza mayor base primero y evita ubicar tapas antes de su taza si
+     * existe una taza del mismo identificador aun no colocada.
+     *
+     * @param placed Conjunto de elementos ya colocados en la grilla.
+     * @return Siguiente elemento a colocar o null si no existe candidato.
+     */
+    private StackableElement nextElementForPlacement(Set<StackableElement> placed){
+        StackableElement candidate = null;
+
+        for(StackableElement element : elements){
+            if(placed.contains(element)){
+                continue;
+            }
+
+            if(element instanceof Lid lid && existsUnplacedCupForId(lid.getId(), placed)){
+                continue;
+            }
+
+            if(candidate == null || isBetterPlacementCandidate(element, candidate)){
+                candidate = element;
+            }
+        }
+
+        return candidate;
+    }
+
+    /**
+     * Determina si un elemento es mejor candidato de ubicacion que otro.
+     *
+     * @param current Elemento actual evaluado.
+     * @param best Mejor candidato acumulado.
+     * @return true si current debe reemplazar a best.
+     */
+    private boolean isBetterPlacementCandidate(StackableElement current, StackableElement best){
+        int widthCompare = Integer.compare(current.getWidth(), best.getWidth());
+        if(widthCompare != 0){
+            return widthCompare > 0;
+        }
+
+        if(current.getId() == best.getId()){
+            if(current.getType().equalsIgnoreCase("cup") && best.getType().equalsIgnoreCase("lid")){
+                return true;
+            }
+            if(current.getType().equalsIgnoreCase("lid") && best.getType().equalsIgnoreCase("cup")){
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Verifica si existe una taza no colocada para un identificador dado.
+     *
+     * @param id Identificador a consultar.
+     * @param placed Conjunto de elementos ya ubicados.
+     * @return true si existe una taza pendiente con ese id.
+     */
+    private boolean existsUnplacedCupForId(int id, Set<StackableElement> placed){
+        for(StackableElement element : elements){
+            if(!placed.contains(element) && element instanceof Cup cup && cup.getId() == id){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Ubica un elemento individual en el nivel mas bajo valido.
+     *
+     * @param element Elemento a ubicar.
+     * @return true si el elemento fue ubicado; false si no hay espacio.
+     */
+    private boolean placeSingleElement(StackableElement element){
+        int logicalWidth = element.getWidth() / CELL_SIZE;
+        int level = findLevelForWidth(logicalWidth);
+        if(level == -1){
+            return false;
+        }
+        placeAtLevel(element, level, logicalWidth);
+        return true;
+    }
+
+    /**
+     * Ubica una taza y su tapa en niveles consecutivos para moverlas juntas.
+     *
+     * @param cup Taza base del par.
+     * @param lid Tapa asociada a la taza.
+     * @return true si ambas piezas fueron ubicadas correctamente.
+     */
+    private boolean placeCupWithLid(Cup cup, Lid lid){
+        int logicalWidth = cup.getWidth() / CELL_SIZE;
+        int cupLevel = findLevelForWidth(logicalWidth);
+        if(cupLevel == -1){
+            return false;
+        }
+
+        int lidLevel = cupLevel - 1;
+        int startX = startXForWidth(logicalWidth);
+
+        if(lidLevel < 0){
+            return false;
+        }
+
+        if(!canPlace(lidLevel, startX, logicalWidth)){
+            return false;
+        }
+
+        placeAtLevel(cup, cupLevel, logicalWidth);
+        placeAtLevel(lid, lidLevel, logicalWidth);
+        return true;
+    }
+
+    /**
+     * Limpia por completo la grilla de ocupacion y el cache de posiciones.
+     * OPTIMIZACION: Tambien limpia el mapa elementPositions para mantener coherencia.
      */
     private void clearGrid(){
         for(int y = 0; y < rows; y++){
@@ -582,141 +1125,54 @@ import shapes.*;
                 grid[y][x] = null;
             }
         }
-    }
-    
-    /**
-     * ===================================================================
-     * CICLO DOS - Nuevas funcionalidades de la torre
-     * ===================================================================
-     */
-    
-    /**
-     * CICLO DOS - Crea una torre inicial llenándola con el número de tazas deseadas.
-     * Las tazas se crean en orden ascendente de tamaño.
-     */
-    public void tower(int cups){
-        for(int i = 1; i <= cups; i++){
-            pushCup(i);
-        }
-    }
-    
-    /**
-     * CICLO DOS - Intercambia la posición de dos objetos en la torre.
-     * Los parámetros contienen tipo e id de cada objeto a intercambiar.
-     * 
-     * @param o1 Array con [tipo, id] del primer objeto
-     * @param o2 Array con [tipo, id] del segundo objeto
-     */
-    public void swap(String[] o1, String[] o2){
-        StackableElement elem1 = null;
-        StackableElement elem2 = null;
         
-        for(StackableElement e : elements){
-            if(e.getType().equalsIgnoreCase(o1[0]) && e.getId() == Integer.parseInt(o1[1])){
-                elem1 = e;
-            }
-            if(e.getType().equalsIgnoreCase(o2[0]) && e.getId() == Integer.parseInt(o2[1])){
-                elem2 = e;
+        // OPTIMIZACION: Limpiar cache de posiciones
+        elementPositions.clear();
+    }
+
+    /**
+     * Retorna los elementos segun su posicion fisica de base a cima.
+     *
+     * @return Lista sin repetidos en el orden fisico actual.
+     */
+    private List<StackableElement> gridElementsFromBaseToTop(){
+        List<StackableElement> ordered = new ArrayList<>();
+        Set<StackableElement> seen = new HashSet<>();
+
+        for(int y = rows - 1; y >= 0; y--){
+            for(int x = 0; x < cols; x++){
+                StackableElement element = grid[y][x];
+                if(element != null && !seen.contains(element)){
+                    ordered.add(element);
+                    seen.add(element);
+                }
             }
         }
-        
-        if(elem1 != null && elem2 != null){
-            int idx1 = elements.indexOf(elem1);
-            int idx2 = elements.indexOf(elem2);
-            
-            elements.set(idx1, elem2);
-            elements.set(idx2, elem1);
-            
-            lastOperationOk = rebuildGridFromElements();
-            repaint();
-        }
-        else{
-            lastOperationOk = false;
-            JOptionPane.showMessageDialog(null, "No se encontraron los elementos a intercambiar");
-        }
+
+        return ordered;
     }
-    
+
     /**
-     * CICLO DOS - Tapa todas las tazas que tengan sus tapas correspondientes en la torre.
-     * Empareja tazas con sus tapas asociadas.
+     * Busca el elemento mas alto de un tipo en la grilla actual.
+     *
+     * @param type Tipo de elemento a buscar (cup o lid).
+     * @return Elemento encontrado en la mayor altura o null si no existe.
      */
-    public void cover(){
-        int tapadasCount = 0;
-        
-        for(StackableElement e : elements){
-            if(e.getType().equalsIgnoreCase("cup")){
-                Cup cup = (Cup) e;
-                if(!cup.hasLid()){
-                    for(StackableElement l : elements){
-                        if(l.getType().equalsIgnoreCase("lid") && l.getId() == e.getId()){
-                            Lid lid = (Lid) l;
-                            cup.setLid(lid);
-                            tapadasCount++;
-                            break;
-                        }
+    private StackableElement findTopElementByType(String type){
+        Set<StackableElement> seen = new HashSet<>();
+
+        for(int y = 0; y < rows; y++){
+            for(int x = 0; x < cols; x++){
+                StackableElement element = grid[y][x];
+                if(element != null && !seen.contains(element)){
+                    seen.add(element);
+                    if(element.getType().equalsIgnoreCase(type)){
+                        return element;
                     }
                 }
             }
         }
-        
-        lastOperationOk = true;
-        repaint();
-        if(tapadasCount > 0){
-            JOptionPane.showMessageDialog(null, "Se taparon " + tapadasCount + " tazas");
-        }
-    }
-    
-    /**
-     * CICLO DOS - Consulta un movimiento de intercambio que reduzca la altura total de la torre.
-     * Retorna un array con los dos elementos que deberían intercambiarse.
-     * 
-     * @return Array bidimensional donde cada fila contiene [tipo, id] de un elemento a intercambiar
-     */
-    public String[][] swapToReduce(){
-        String[][] result = new String[2][2];
-        int bestHeightReduction = Integer.MIN_VALUE;
-        int idx1 = -1, idx2 = -1;
-        
-        // Busca el par de elementos cuyo intercambio máximo reduce la altura
-        for(int i = 0; i < elements.size(); i++){
-            for(int j = i + 1; j < elements.size(); j++){
-                // Simula el intercambio
-                int heightBefore = towerHeightLevels();
-                
-                StackableElement temp = elements.get(i);
-                elements.set(i, elements.get(j));
-                elements.set(j, temp);
-                rebuildGridFromElements();
-                
-                int heightAfter = towerHeightLevels();
-                int reduction = heightBefore - heightAfter;
-                
-                if(reduction > bestHeightReduction){
-                    bestHeightReduction = reduction;
-                    idx1 = i;
-                    idx2 = j;
-                }
-                
-                // Revierte el intercambio
-                elements.set(j, elements.get(i));
-                elements.set(i, temp);
-                rebuildGridFromElements();
-            }
-        }
-        
-        if(idx1 != -1 && idx2 != -1){
-            result[0][0] = elements.get(idx1).getType();
-            result[0][1] = String.valueOf(elements.get(idx1).getId());
-            result[1][0] = elements.get(idx2).getType();
-            result[1][1] = String.valueOf(elements.get(idx2).getId());
-            
-            lastOperationOk = true;
-        }
-        else{
-            lastOperationOk = false;
-        }
-        
-        repaint();
-        return result;
+
+        return null;
     }
 }

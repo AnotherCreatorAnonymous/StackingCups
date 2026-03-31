@@ -1,0 +1,13 @@
+#BlueJ class context
+comment0.target=TowerContest
+comment0.text=\r\n\ Resuelve\ y\ simula\ escenarios\ del\ problema\ de\ maraton\ para\ Stacking\ Cups.\r\n\r\n\ Esta\ clase\ concentra\ la\ logica\ de\ concurso\ para\ mantener\ separada\ la\r\n\ simulacion\ visual\ implementada\ en\ Tower.\r\n\r\n\ @author\ Carlos\ Felipe\ Jimenez\ Sposito\r\n\ @version\ 1.0\r\n
+comment1.params=n\ h
+comment1.target=java.lang.String\ solve(int,\ int)
+comment1.text=\r\n\ Resuelve\ si\ es\ posible\ apilar\ n\ tazas\ dentro\ de\ una\ altura\ maxima\ h.\r\n\r\n\ La\ decision\ se\ basa\ en\ la\ altura\ minima\ requerida\ por\ una\ torre\ ordenada\r\n\ descendente\ con\ tapas\ opcionales\ no\ obligatorias.\r\n\r\n\ @param\ n\ Cantidad\ de\ tazas\ a\ apilar.\r\n\ @param\ h\ Altura\ maxima\ disponible\ en\ niveles\ de\ 1\ cm.\r\n\ @return\ "possible"\ si\ existe\ solucion;\ "impossible"\ en\ caso\ contrario.\r\n
+comment2.params=n\ h
+comment2.target=void\ simulate(int,\ int)
+comment2.text=\r\n\ Simula\ visualmente\ una\ solucion\ cuando\ existe;\ de\ lo\ contrario\ notifica.\r\n\r\n\ @param\ n\ Cantidad\ de\ tazas\ a\ simular.\r\n\ @param\ h\ Altura\ maxima\ permitida\ para\ la\ simulacion.\r\n
+comment3.params=n
+comment3.target=int\ minimumHeightForCups(int)
+comment3.text=\r\n\ Calcula\ la\ altura\ minima\ en\ niveles\ para\ n\ tazas\ en\ este\ modelo.\r\n\r\n\ @param\ n\ Cantidad\ de\ tazas.\r\n\ @return\ Altura\ minima\ requerida\ para\ apilar\ las\ tazas.\r\n
+numComments=4

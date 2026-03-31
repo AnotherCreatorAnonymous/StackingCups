@@ -1,7 +1,7 @@
 package StackingCups;
 import shapes.*;
 
-
+ 
 /**
  * Write a description of class Cup here.
  * 
@@ -33,7 +33,7 @@ public class Cup extends StackableElement {
         
         cupShape = new Rectangle();
         cupShape.changeSize(height, width);
-        cupShape.changeColor(colorForSize(n));
+        cupShape.changeColor(colorForId(n));
 
         cupInnerShape = new Rectangle();
         cupInnerShape.changeSize(innerHeight(height), innerWidth(width));
@@ -64,9 +64,12 @@ public class Cup extends StackableElement {
     }
 
     /**
-     * Retorna el color asociado al tamano de la copa.
+     * Retorna el color asociado al identificador de una copa.
+     *
+     * @param n Identificador de la copa.
+     * @return Nombre del color definido para el identificador.
      */
-    private String colorForSize(int n){
+    public static String colorForId(int n){
         int index = Math.abs(n - 1) % CUP_COLORS.length;
         return CUP_COLORS[index];
     }
@@ -76,6 +79,15 @@ public class Cup extends StackableElement {
      */
     public void setLid(Lid lid) {
         this.lid = lid;
+    }
+
+    /**
+     * Retorna la tapa asociada a la copa.
+     *
+     * @return Instancia de la tapa asociada o null si no existe.
+     */
+    public Lid getLid() {
+        return lid;
     }
 
     /**

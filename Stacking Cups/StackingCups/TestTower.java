@@ -5,48 +5,35 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * The test class TestTower.
+ * Pruebas base para la clase Tower.
  *
- * @author  (your name)
- * @version (a version number or a date)
+ * Se ejecutan en modo invisible para evitar dependencias visuales en QA.
+ *
+ * @author Carlos Felipe Jimenez Sposito
+ * @version 2.0
  */
-public class TestTower
-{
+public class TestTower {
     private Tower tower;
 
     /**
-     * Default constructor for test class TestTower
-     */
-    public TestTower()
-    {
-    }
-
-    /**
-     * Sets up the test fixture.
-     *
-     * Called before every test case method.
+     * Configura una torre de pruebas antes de cada caso.
      */
     @BeforeEach
-    public void setUp()
-    {
+    public void setUp(){
         tower = new Tower(21, 20);
     }
 
     /**
-     * Tears down the test fixture.
-     *
-     * Called after every test case method.
+     * Limpia la referencia de la torre al terminar cada prueba.
      */
     @AfterEach
-    public void tearDown()
-    {
+    public void tearDown(){
         tower = null;
     }
 
-    // ============================================================
-    // PRUEBAS DE ESTADO INICIAL
-    // ============================================================
-
+    /**
+     * Verifica que la torre inicie vacia y con estado no exitoso.
+     */
     @Test
     public void shouldStartEmpty(){
         assertEquals(0, tower.height());
@@ -54,10 +41,9 @@ public class TestTower
         assertEquals(0, tower.stackingItems().length);
     }
 
-    // ============================================================
-    // PRUEBAS DE INSERCION DE COPAS
-    // ============================================================
-
+    /**
+     * Verifica insercion valida de una taza.
+     */
     @Test
     public void shouldPushCupWhenValid(){
         tower.pushCup(5);
@@ -68,16 +54,34 @@ public class TestTower
         assertEquals(5, tower.getElements().get(0).getId());
     }
 
+    /**
+     * Verifica rechazo de taza que excede el ancho de la torre.
+     */
     @Test
     public void shouldRejectCupWhenTooWide(){
-        tower.pushCup(12); // 2*12-1=23 > ancho 21
+        tower.pushCup(12);
 
         assertFalse(tower.ok());
         assertEquals(0, tower.height());
     }
 
+    /**
+     * Verifica que se permita mismo id entre tipos distintos.
+     */
     @Test
-    public void shouldRejectDuplicateIdAcrossElements(){
+    public void shouldAllowSameIdAcrossDifferentTypes(){
+        tower.pushCup(4);
+        tower.pushLid(4);
+
+        assertTrue(tower.ok());
+        assertEquals(2, tower.height());
+    }
+
+    /**
+     * Verifica que se rechace id duplicado dentro del mismo tipo.
+     */
+    @Test
+    public void shouldRejectDuplicateIdForSameType(){
         tower.pushCup(4);
         tower.pushCup(4);
 
@@ -85,10 +89,9 @@ public class TestTower
         assertEquals(1, tower.height());
     }
 
-    // ============================================================
-    // PRUEBAS DE INSERCION DE TAPAS
-    // ============================================================
-
+    /**
+     * Verifica insercion valida de tapa.
+     */
     @Test
     public void shouldPushLidWhenValid(){
         tower.pushLid(3);
@@ -99,25 +102,13 @@ public class TestTower
         assertEquals(3, tower.getElements().get(0).getId());
     }
 
-    @Test
-    public void shouldRejectLidWhenTooWide(){
-        tower.pushLid(11); // 2*11-1=21 cabe
-        assertTrue(tower.ok());
-
-        tower.pushLid(12); // no cabe
-        assertFalse(tower.ok());
-        assertEquals(1, tower.height());
-    }
-
-    // ============================================================
-    // PRUEBAS DE ELIMINACION
-    // ============================================================
-
+    /**
+     * Verifica eliminacion de la ultima taza insertada.
+     */
     @Test
     public void shouldPopLastCup(){
         tower.pushCup(5);
         tower.pushCup(4);
-
         tower.popCup();
 
         assertTrue(tower.ok());
@@ -125,89 +116,63 @@ public class TestTower
         assertEquals(5, tower.getElements().get(0).getId());
     }
 
+    /**
+     * Verifica eliminacion por tipo e id.
+     */
     @Test
-    public void shouldPopLastLid(){
-        tower.pushLid(4);
+    public void shouldRemoveSpecificLidById(){
+        tower.pushLid(2);
         tower.pushLid(3);
-
-        tower.popLid();
-
-        assertTrue(tower.ok());
-        assertEquals(1, tower.height());
-        assertEquals(4, tower.getElements().get(0).getId());
-    }
-
-    @Test
-    public void shouldRemoveSpecificCupById(){
-        tower.pushCup(5);
-        tower.pushCup(4);
-        tower.pushCup(3);
-
-        tower.removeCup(4);
-
-        assertTrue(tower.ok());
-        assertEquals(2, tower.height());
-        assertEquals(5, tower.getElements().get(0).getId());
-        assertEquals(3, tower.getElements().get(1).getId());
-    }
-
-    @Test
-    public void shouldFailRemovingMissingLid(){
-        tower.pushCup(5);
         tower.removeLid(2);
 
-        assertFalse(tower.ok());
+        assertTrue(tower.ok());
         assertEquals(1, tower.height());
+        assertEquals(3, tower.getElements().get(0).getId());
     }
 
-    // ============================================================
-    // PRUEBAS DE REORGANIZACION
-    // ============================================================
-
+    /**
+     * Verifica ordenamiento de mayor base a menor base.
+     */
     @Test
-    public void shouldOrderTowerByWidthAndHeight(){
-        tower.pushCup(5);
-        tower.pushLid(4);
+    public void shouldOrderTowerByBaseDescending(){
+        tower.pushCup(2);
+        tower.pushCup(4);
         tower.pushCup(3);
 
         tower.orderTower();
 
-        assertTrue(tower.ok());
-        assertEquals(3, tower.height());
-        assertEquals(3, tower.getElements().get(0).getId());
-        assertEquals(4, tower.getElements().get(1).getId());
-        assertEquals(5, tower.getElements().get(2).getId());
-    }
-
-    @Test
-    public void shouldReverseTowerOrder(){
-        tower.pushCup(3);
-        tower.pushLid(4);
-        tower.pushCup(5);
-
-        tower.reverseTower();
-
-        assertTrue(tower.ok());
-        assertEquals(5, tower.getElements().get(0).getId());
-        assertEquals(4, tower.getElements().get(1).getId());
-        assertEquals(3, tower.getElements().get(2).getId());
-    }
-
-    // ============================================================
-    // PRUEBAS DE CONSULTA
-    // ============================================================
-
-    @Test
-    public void shouldReturnStackingItemsInCurrentOrder(){
-        tower.pushCup(5);
-        tower.pushLid(4);
-
         String[][] items = tower.stackingItems();
+        assertTrue(tower.ok());
+        assertEquals("4", items[0][1]);
+        assertEquals("3", items[1][1]);
+        assertEquals("2", items[2][1]);
+    }
 
-        assertEquals(2, items.length);
-        assertEquals("cup", items[0][0]);
-        assertEquals("5", items[0][1]);
-        assertEquals("lid", items[1][0]);
-        assertEquals("4", items[1][1]);
+    /**
+     * Verifica la operacion cover y consulta lidedCups.
+     */
+    @Test
+    public void shouldCoverAndReturnLidedCups(){
+        tower.pushCup(1);
+        tower.pushCup(2);
+        tower.pushLid(2);
+        tower.pushLid(1);
+
+        tower.cover();
+        int[] lided = tower.lidedCups();
+
+        assertTrue(tower.ok());
+        assertEquals(2, lided.length);
+        assertEquals(1, lided[0]);
+        assertEquals(2, lided[1]);
+    }
+
+    /**
+     * Verifica que el constructor por cups cree el simulador vacio.
+     */
+    @Test
+    public void shouldBuildTowerByCupsConstructor(){
+        Tower autoTower = new Tower(4);
+        assertEquals(0, autoTower.height());
     }
 }

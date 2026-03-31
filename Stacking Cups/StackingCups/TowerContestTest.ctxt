@@ -1,0 +1,16 @@
+#BlueJ class context
+comment0.target=TowerContestTest
+comment0.text=\r\n\ Pruebas\ unitarias\ para\ la\ logica\ de\ concurso\ en\ TowerContest.\r\n\r\n\ @author\ Carlos\ Felipe\ Jimenez\ Sposito\r\n\ @version\ 1.0\r\n
+comment1.params=
+comment1.target=void\ shouldSolvePossibleCase()
+comment1.text=\r\n\ Verifica\ caso\ positivo\ de\ solucion\ para\ parametros\ validos.\r\n
+comment2.params=
+comment2.target=void\ shouldSolveImpossibleCase()
+comment2.text=\r\n\ Verifica\ caso\ negativo\ de\ solucion\ por\ altura\ insuficiente.\r\n
+comment3.params=
+comment3.target=void\ shouldRejectInvalidInput()
+comment3.text=\r\n\ Verifica\ caso\ negativo\ con\ entradas\ invalidas.\r\n
+comment4.params=
+comment4.target=void\ shouldSimulateGracefullyWhenImpossible()
+comment4.text=\r\n\ Verifica\ que\ simulate\ no\ falle\ en\ caso\ sin\ solucion.\r\n
+numComments=5

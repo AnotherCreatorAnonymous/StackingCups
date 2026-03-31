@@ -1,0 +1,22 @@
+#BlueJ class context
+comment0.target=TowerC2Test
+comment0.text=\r\n\ Pruebas\ de\ ciclo\ 2\ para\ funcionalidades\ avanzadas\ de\ Tower.\r\n\r\n\ Se\ validan\ escenarios\ positivos\ y\ negativos\ en\ modo\ invisible.\r\n\r\n\ @author\ Carlos\ Felipe\ Jimenez\ Sposito\r\n\ @version\ 1.0\r\n
+comment1.params=
+comment1.target=void\ setUp()
+comment1.text=\r\n\ Inicializa\ la\ torre\ de\ pruebas\ antes\ de\ cada\ caso.\r\n
+comment2.params=
+comment2.target=void\ tearDown()
+comment2.text=\r\n\ Libera\ la\ referencia\ de\ la\ torre\ al\ finalizar\ cada\ caso.\r\n
+comment3.params=
+comment3.target=void\ shouldSwapTwoExistingElements()
+comment3.text=\r\n\ Verifica\ que\ swap\ intercambie\ dos\ elementos\ existentes.\r\n
+comment4.params=
+comment4.target=void\ shouldFailSwapWhenElementDoesNotExist()
+comment4.text=\r\n\ Verifica\ fallo\ de\ swap\ cuando\ un\ elemento\ no\ existe.\r\n
+comment5.params=
+comment5.target=void\ shouldSuggestSwapToReduce()
+comment5.text=\r\n\ Verifica\ que\ swapToReduce\ retorne\ estructura\ valida\ de\ intercambio.\r\n
+comment6.params=
+comment6.target=void\ shouldFailCoverWithoutPairs()
+comment6.text=\r\n\ Verifica\ que\ cover\ falle\ cuando\ no\ existen\ parejas\ cup-lid.\r\n
+numComments=7
