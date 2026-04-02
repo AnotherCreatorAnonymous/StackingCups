@@ -224,7 +224,7 @@ public class Tower {
 
     /**
      * Empareja tapas y tazas del mismo numero para que se dibujen juntas.
-     * OPTIMIZACION: Sincroniza links una sola vez antes de evaluar; luego reordena sin resincronizar.
+     * OPTIMIZACION: Solo reordena la lista, sin resincronizar enlaces.
      */
     public void cover(){
         synchronizeCupLidLinks();
@@ -362,10 +362,8 @@ public class Tower {
         synchronizeCupLidLinks();
 
         for(StackableElement element : elements){
-            if(element instanceof Cup cup){
-                if(cup.hasLid()){
-                    ids.add(cup.getId());
-                }
+            if(element instanceof Cup cup && cup.hasLid()){
+                ids.add(cup.getId());
             }
         }
 
@@ -590,11 +588,11 @@ public class Tower {
             Cup cup = cups.get(id);
             Lid lid = lids.get(id);
 
-            if(cup != null){
-                ordered.add(cup);
-            }
             if(lid != null){
                 ordered.add(lid);
+            }
+            if(cup != null){
+                ordered.add(cup);
             }
         }
 
@@ -867,8 +865,13 @@ public class Tower {
         }
         
         int minLevel = Integer.MAX_VALUE;
-        for(int[] pos : elementPositions.values()){
-            minLevel = Math.min(minLevel, pos[1]);
+        for(Map.Entry<StackableElement, int[]> entry : elementPositions.entrySet()){
+            StackableElement element = entry.getKey();
+            int[] pos = entry.getValue();
+            int baseLevel = pos[1];
+            int logicalHeight = Math.max(1, element.getHeight() / CELL_SIZE);
+            int topLevel = baseLevel - logicalHeight + 1;
+            minLevel = Math.min(minLevel, topLevel);
         }
         
         return minLevel == Integer.MAX_VALUE ? 0 : rows - minLevel;
@@ -876,23 +879,30 @@ public class Tower {
 
     /**
      * Busca el nivel mas bajo valido para un ancho logico dado.
+     * Ahora permite "voladizos" (poner grandes sobre pequeñas) omitiendo la validacion de soporte.
      *
      * @param logicalWidth Ancho logico del elemento en celdas.
-     * @return Nivel encontrado o -1 si no existe un nivel valido.
+        * @param logicalHeight Altura logica del elemento en celdas.
+     * @return Nivel encontrado o -1 si no existe un nivel valido (supera altura maxima).
      */
-    private int findLevelForWidth(int logicalWidth){
+    private int findLevelForWidth(int logicalWidth, int logicalHeight){
         int startX = startXForWidth(logicalWidth);
 
+        // Si la pieza de por sí es más ancha que el Canvas lógico, falla.
         if(startX < 0 || startX + logicalWidth > cols){
             return -1;
         }
 
+        // Simulamos gravedad: probamos desde el piso (rows - 1) hacia arriba (0)
         for(int level = rows - 1; level >= 0; level--){
-            if(canPlace(level, startX, logicalWidth) && hasSupport(level, startX, logicalWidth)){
-                return level;
+            if(canPlace(level, startX, logicalWidth, logicalHeight)){
+                // En el momento en que cabe sin superponerse con otra pieza, ahí se queda
+                return level; 
             }
         }
-        return -1;
+        
+        // Si recorrió toda la torre y no encontró espacio, superó la altura máxima
+        return -1; 
     }
 
     /**
@@ -911,40 +921,45 @@ public class Tower {
      * @param level Nivel de la grilla.
      * @param startX Posicion inicial horizontal.
      * @param logicalWidth Ancho en celdas.
+     * @param logicalHeight Altura en celdas del elemento.
      * @return true si se puede ubicar; false si hay colision.
      */
-    private boolean canPlace(int level, int startX, int logicalWidth){
+    private boolean canPlace(int level, int startX, int logicalWidth, int logicalHeight){
         if(level < 0 || level >= rows){
             return false;
         }
 
-        for(int x = startX; x < startX + logicalWidth; x++){
-            if(grid[level][x] != null){
-                return false;
+        int topLevel = level - logicalHeight + 1;
+        if(topLevel < 0){
+            return false;
+        }
+
+        for(int y = topLevel; y <= level; y++){
+            for(int x = startX; x < startX + logicalWidth; x++){
+                StackableElement occupied = grid[y][x];
+                if(occupied != null && !canNestInsideCup(occupied, logicalWidth)){
+                    return false;
+                }
             }
         }
         return true;
     }
 
     /**
-     * Verifica que el elemento tenga soporte completo debajo de su base.
+     * Regla de encaje: una Cup o Lid puede encajar solo si es mas pequena
+     * que la Cup ocupante sobre la que cae.
      *
-     * @param level Nivel donde se desea ubicar el elemento.
-     * @param startX Posicion inicial horizontal.
-     * @param logicalWidth Ancho en celdas.
-     * @return true si el soporte es valido; false en caso contrario.
+     * @param occupied Elemento ya presente en la celda objetivo.
+     * @param currentLogicalWidth Ancho logico de la pieza a ubicar.
+     * @return true si el encaje es valido; false si debe considerarse colision.
      */
-    private boolean hasSupport(int level, int startX, int logicalWidth){
-        if(level == rows - 1){
-            return true;
+    private boolean canNestInsideCup(StackableElement occupied, int currentLogicalWidth){
+        if(!(occupied instanceof Cup)){
+            return false;
         }
 
-        for(int x = startX; x < startX + logicalWidth; x++){
-            if(grid[level + 1][x] == null){
-                return false;
-            }
-        }
-        return true;
+        int occupiedLogicalWidth = occupied.getWidth() / CELL_SIZE;
+        return currentLogicalWidth < occupiedLogicalWidth;
     }
 
     /**
@@ -957,9 +972,13 @@ public class Tower {
      */
     private void placeAtLevel(StackableElement element, int level, int logicalWidth){
         int startX = startXForWidth(logicalWidth);
+        int logicalHeight = Math.max(1, element.getHeight() / CELL_SIZE);
+        int topLevel = level - logicalHeight + 1;
 
-        for(int x = startX; x < startX + logicalWidth; x++){
-            grid[level][x] = element;
+        for(int y = topLevel; y <= level; y++){
+            for(int x = startX; x < startX + logicalWidth; x++){
+                grid[y][x] = element;
+            }
         }
         
         // OPTIMIZACION: Guardar posicion en cache para repaint O(N)
@@ -973,100 +992,14 @@ public class Tower {
      */
     private boolean rebuildGridFromElements(){
         clearGrid();
-        Set<StackableElement> placed = new HashSet<>();
 
-        while(placed.size() < elements.size()){
-            StackableElement element = nextElementForPlacement(placed);
-            if(element == null){
+        for(StackableElement element : elements){
+            if(!placeSingleElement(element)){
                 return false;
-            }
-
-            if(element instanceof Cup cup && cup.hasLid() && elements.contains(cup.getLid())){
-                if(!placeCupWithLid(cup, cup.getLid())){
-                    return false;
-                }
-                placed.add(cup);
-                placed.add(cup.getLid());
-            }
-            else{
-                if(!placeSingleElement(element)){
-                    return false;
-                }
-                placed.add(element);
             }
         }
 
         return true;
-    }
-
-    /**
-     * Busca el siguiente elemento a ubicar usando solo la lista principal.
-     *
-     * Prioriza mayor base primero y evita ubicar tapas antes de su taza si
-     * existe una taza del mismo identificador aun no colocada.
-     *
-     * @param placed Conjunto de elementos ya colocados en la grilla.
-     * @return Siguiente elemento a colocar o null si no existe candidato.
-     */
-    private StackableElement nextElementForPlacement(Set<StackableElement> placed){
-        StackableElement candidate = null;
-
-        for(StackableElement element : elements){
-            if(placed.contains(element)){
-                continue;
-            }
-
-            if(element instanceof Lid lid && existsUnplacedCupForId(lid.getId(), placed)){
-                continue;
-            }
-
-            if(candidate == null || isBetterPlacementCandidate(element, candidate)){
-                candidate = element;
-            }
-        }
-
-        return candidate;
-    }
-
-    /**
-     * Determina si un elemento es mejor candidato de ubicacion que otro.
-     *
-     * @param current Elemento actual evaluado.
-     * @param best Mejor candidato acumulado.
-     * @return true si current debe reemplazar a best.
-     */
-    private boolean isBetterPlacementCandidate(StackableElement current, StackableElement best){
-        int widthCompare = Integer.compare(current.getWidth(), best.getWidth());
-        if(widthCompare != 0){
-            return widthCompare > 0;
-        }
-
-        if(current.getId() == best.getId()){
-            if(current.getType().equalsIgnoreCase("cup") && best.getType().equalsIgnoreCase("lid")){
-                return true;
-            }
-            if(current.getType().equalsIgnoreCase("lid") && best.getType().equalsIgnoreCase("cup")){
-                return false;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Verifica si existe una taza no colocada para un identificador dado.
-     *
-     * @param id Identificador a consultar.
-     * @param placed Conjunto de elementos ya ubicados.
-     * @return true si existe una taza pendiente con ese id.
-     */
-    private boolean existsUnplacedCupForId(int id, Set<StackableElement> placed){
-        for(StackableElement element : elements){
-            if(!placed.contains(element) && element instanceof Cup cup && cup.getId() == id){
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -1077,41 +1010,12 @@ public class Tower {
      */
     private boolean placeSingleElement(StackableElement element){
         int logicalWidth = element.getWidth() / CELL_SIZE;
-        int level = findLevelForWidth(logicalWidth);
+        int logicalHeight = Math.max(1, element.getHeight() / CELL_SIZE);
+        int level = findLevelForWidth(logicalWidth, logicalHeight);
         if(level == -1){
             return false;
         }
         placeAtLevel(element, level, logicalWidth);
-        return true;
-    }
-
-    /**
-     * Ubica una taza y su tapa en niveles consecutivos para moverlas juntas.
-     *
-     * @param cup Taza base del par.
-     * @param lid Tapa asociada a la taza.
-     * @return true si ambas piezas fueron ubicadas correctamente.
-     */
-    private boolean placeCupWithLid(Cup cup, Lid lid){
-        int logicalWidth = cup.getWidth() / CELL_SIZE;
-        int cupLevel = findLevelForWidth(logicalWidth);
-        if(cupLevel == -1){
-            return false;
-        }
-
-        int lidLevel = cupLevel - 1;
-        int startX = startXForWidth(logicalWidth);
-
-        if(lidLevel < 0){
-            return false;
-        }
-
-        if(!canPlace(lidLevel, startX, logicalWidth)){
-            return false;
-        }
-
-        placeAtLevel(cup, cupLevel, logicalWidth);
-        placeAtLevel(lid, lidLevel, logicalWidth);
         return true;
     }
 

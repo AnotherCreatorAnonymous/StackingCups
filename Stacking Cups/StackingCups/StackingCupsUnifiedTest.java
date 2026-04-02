@@ -5,14 +5,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Pruebas base para la clase Tower.
+ * Pruebas unificadas del proyecto StackingCups.
  *
- * Se ejecutan en modo invisible para evitar dependencias visuales en QA.
+ * Contiene los escenarios de Tower y TowerContest en una sola clase.
  *
  * @author Carlos Felipe Jimenez Sposito
- * @version 2.0
+ * @version 3.0
  */
-public class TestTower {
+public class StackingCupsUnifiedTest {
     private Tower tower;
 
     /**
@@ -174,5 +174,95 @@ public class TestTower {
     public void shouldBuildTowerByCupsConstructor(){
         Tower autoTower = new Tower(4);
         assertEquals(0, autoTower.height());
+    }
+
+    /**
+     * Verifica que swap intercambie dos elementos existentes.
+     */
+    @Test
+    public void shouldSwapTwoExistingElements(){
+        tower.pushCup(2);
+        tower.pushLid(2);
+
+        tower.swap(new String[]{"cup", "2"}, new String[]{"lid", "2"});
+
+        assertTrue(tower.ok());
+        assertEquals(2, tower.height());
+    }
+
+    /**
+     * Verifica fallo de swap cuando un elemento no existe.
+     */
+    @Test
+    public void shouldFailSwapWhenElementDoesNotExist(){
+        tower.pushCup(2);
+
+        tower.swap(new String[]{"cup", "2"}, new String[]{"lid", "9"});
+
+        assertFalse(tower.ok());
+        assertEquals(1, tower.height());
+    }
+
+    /**
+     * Verifica que swapToReduce retorne estructura valida de intercambio.
+     */
+    @Test
+    public void shouldSuggestSwapToReduce(){
+        tower.pushCup(1);
+        tower.pushCup(3);
+        tower.pushLid(2);
+
+        String[][] move = tower.swapToReduce();
+
+        assertEquals(2, move.length);
+        assertEquals(2, move[0].length);
+        assertEquals(2, move[1].length);
+    }
+
+    /**
+     * Verifica que cover falle cuando no existen parejas cup-lid.
+     */
+    @Test
+    public void shouldFailCoverWithoutPairs(){
+        tower.pushCup(4);
+        tower.cover();
+
+        assertFalse(tower.ok());
+    }
+
+    /**
+     * Verifica caso positivo de solucion para parametros validos.
+     */
+    @Test
+    public void shouldSolvePossibleCase(){
+        TowerContest contest = new TowerContest();
+        assertEquals("possible", contest.solve(4, 6));
+    }
+
+    /**
+     * Verifica caso negativo de solucion por altura insuficiente.
+     */
+    @Test
+    public void shouldSolveImpossibleCase(){
+        TowerContest contest = new TowerContest();
+        assertEquals("impossible", contest.solve(5, 3));
+    }
+
+    /**
+     * Verifica caso negativo con entradas invalidas.
+     */
+    @Test
+    public void shouldRejectInvalidInput(){
+        TowerContest contest = new TowerContest();
+        assertEquals("impossible", contest.solve(0, 0));
+    }
+
+    /**
+     * Verifica que simulate no falle en caso sin solucion.
+     */
+    @Test
+    public void shouldSimulateGracefullyWhenImpossible(){
+        TowerContest contest = new TowerContest();
+        assertDoesNotThrow(() -> contest.simulate(5, 2));
     }
 }
