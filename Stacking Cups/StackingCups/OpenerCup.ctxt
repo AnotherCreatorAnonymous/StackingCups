@@ -1,0 +1,13 @@
+#BlueJ class context
+comment0.target=OpenerCup
+comment0.text=\r\n\ Taza\ especial\ del\ ciclo\ 4\ con\ comportamiento\ abridor.\r\n\r\n\ Al\ entrar\ elimina\ tapas\ que\ bloquean\ su\ trayectoria\ de\ apilamiento.\r\n\r\n\ @author\ Carlos\ Felipe\ Jimenez\ Sposito\r\n\ @version\ 1.0\r\n
+comment1.params=n
+comment1.target=OpenerCup(int)
+comment1.text=\r\n\ Construye\ una\ taza\ abridora\ con\ el\ id\ dado.\r\n\r\n\ @param\ n\ Identificador\ positivo\ del\ elemento.\r\n
+comment2.params=
+comment2.target=java.lang.String\ getType()
+comment2.text=\r\n\ Retorna\ el\ tipo\ logico\ de\ esta\ taza\ especial.\r\n
+comment3.params=
+comment3.target=boolean\ removesBlockingLids()
+comment3.text=\r\n\ Activa\ la\ eliminacion\ de\ tapas\ bloqueantes\ al\ insertar.\r\n
+numComments=4

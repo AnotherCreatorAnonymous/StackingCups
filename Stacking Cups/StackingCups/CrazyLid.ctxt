@@ -1,0 +1,16 @@
+#BlueJ class context
+comment0.target=CrazyLid
+comment0.text=\r\n\ Tapa\ especial\ del\ ciclo\ 4\ con\ comportamiento\ crazy.\r\n\r\n\ En\ lugar\ de\ ubicarse\ como\ tapa\ superior,\ se\ posiciona\ como\ base\r\n\ de\ su\ taza\ companera\ cuando\ esta\ existe\ en\ la\ torre.\r\n\r\n\ @author\ Carlos\ Felipe\ Jimenez\ Sposito\r\n\ @version\ 1.0\r\n
+comment1.params=n
+comment1.target=CrazyLid(int)
+comment1.text=\r\n\ Construye\ una\ tapa\ crazy\ con\ el\ id\ dado.\r\n\r\n\ @param\ n\ Identificador\ positivo\ del\ elemento.\r\n
+comment2.params=
+comment2.target=java.lang.String\ getType()
+comment2.text=\r\n\ Retorna\ el\ tipo\ logico\ de\ esta\ tapa\ especial.\r\n
+comment3.params=
+comment3.target=boolean\ requiresCompanionCup()
+comment3.text=\r\n\ Requiere\ la\ presencia\ previa\ de\ taza\ companera.\r\n
+comment4.params=
+comment4.target=boolean\ prefersBasePlacement()
+comment4.text=\r\n\ Indica\ que\ debe\ insertarse\ como\ base\ de\ su\ taza\ companera.\r\n
+numComments=5

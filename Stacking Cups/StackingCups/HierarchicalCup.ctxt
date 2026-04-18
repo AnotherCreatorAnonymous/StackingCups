@@ -1,0 +1,13 @@
+#BlueJ class context
+comment0.target=HierarchicalCup
+comment0.text=\r\n\ Taza\ especial\ del\ ciclo\ 4\ con\ comportamiento\ jerarquico.\r\n\r\n\ Al\ entrar\ en\ la\ torre\ debe\ desplazar\ hacia\ arriba\ los\ elementos\r\n\ de\ menor\ tamano\ respecto\ a\ su\ ancho\ logico.\r\n\r\n\ @author\ Carlos\ Felipe\ Jimenez\ Sposito\r\n\ @version\ 1.0\r\n
+comment1.params=n
+comment1.target=HierarchicalCup(int)
+comment1.text=\r\n\ Construye\ una\ taza\ jerarquica\ con\ el\ id\ dado.\r\n\r\n\ @param\ n\ Identificador\ positivo\ del\ elemento.\r\n
+comment2.params=
+comment2.target=java.lang.String\ getType()
+comment2.text=\r\n\ Retorna\ el\ tipo\ logico\ de\ esta\ taza\ especial.\r\n
+comment3.params=
+comment3.target=boolean\ pushesSmallerElementsUp()
+comment3.text=\r\n\ Activa\ la\ regla\ de\ desplazamiento\ de\ menores\ al\ insertar.\r\n
+numComments=4

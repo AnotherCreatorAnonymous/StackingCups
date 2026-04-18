@@ -1444,12 +1444,37 @@ public class Tower {
         for(int y = topLevel; y <= level; y++){
             for(int x = startX; x < startX + logicalWidth; x++){
                 StackableElement occupied = grid[y][x];
-                if(occupied != null && !canNestInsideCup(occupied, logicalWidth)){
+                if(occupied != null && !canShareCell(occupied, logicalWidth, y)){
                     return false;
                 }
             }
         }
         return true;
+    }
+
+    /**
+     * Determina si una celda ocupada puede compartirse por anidamiento.
+     *
+     * Regla adicional: una taza anidada no puede ocupar la fila base de
+     * la taza contenedora, evitando solapamiento visual en la base.
+     *
+     * @param occupied Elemento ya presente en la celda.
+     * @param incomingLogicalWidth Ancho logico del elemento entrante.
+     * @param row Fila de grilla evaluada.
+     * @return true si la celda puede compartirse; false si hay colision.
+     */
+    private boolean canShareCell(StackableElement occupied, int incomingLogicalWidth, int row){
+        if(!canNestInsideCup(occupied, incomingLogicalWidth)){
+            return false;
+        }
+
+        int[] occupiedPos = elementPositions.get(occupied);
+        if(occupiedPos == null){
+            return true;
+        }
+
+        int occupiedBaseLevel = occupiedPos[1];
+        return row < occupiedBaseLevel;
     }
 
     /**
@@ -1496,10 +1521,15 @@ public class Tower {
         pruneLiftRequirements();
         clearGrid();
 
+        int maxBaseLevelAllowed = rows - 1;
+
         for(StackableElement element : elements){
-            if(!placeSingleElement(element)){
+            int placedLevel = placeSingleElement(element, maxBaseLevelAllowed);
+            if(placedLevel == -1){
                 return false;
             }
+
+            maxBaseLevelAllowed = placedLevel - 1;
         }
 
         return true;
@@ -1518,45 +1548,56 @@ public class Tower {
      * @param element Elemento a ubicar.
      * @return true si el elemento fue ubicado; false si no hay espacio.
      */
-    private boolean placeSingleElement(StackableElement element){
+    private int placeSingleElement(StackableElement element, int maxBaseLevelAllowed){
         int logicalWidth = element.logicalWidth();
         int logicalHeight = element.logicalHeight();
         int settledLevel = findLevelForWidth(logicalWidth, logicalHeight);
         if(settledLevel == -1){
-            return false;
+            return -1;
         }
 
         int requiredLift = liftLevelsByElement.getOrDefault(element, 0);
-        int level = settledLevel;
+        int level = findConstrainedLevel(
+            logicalWidth,
+            logicalHeight,
+            settledLevel,
+            requiredLift,
+            maxBaseLevelAllowed
+        );
 
-        if(requiredLift > 0){
-            level = findLiftedLevel(logicalWidth, logicalHeight, settledLevel, requiredLift);
-            if(level == -1){
-                return false;
-            }
+        if(level == -1){
+            return -1;
         }
 
         placeAtLevel(element, level, logicalWidth);
-        return true;
+        return level;
     }
 
     /**
-     * Busca un nivel valido que cumpla una elevacion minima requerida.
+     * Busca un nivel valido que respete restricciones de elevacion y orden.
      *
      * @param logicalWidth Ancho logico del elemento.
      * @param logicalHeight Alto logico del elemento.
      * @param settledLevel Nivel de equilibrio por gravedad.
      * @param requiredLift Niveles minimos que debe subir el elemento.
-     * @return Nivel valido elevado o -1 si no existe.
+     * @param maxBaseLevelAllowed Nivel base maximo permitido por orden.
+     * @return Nivel valido o -1 si no existe.
      */
-    private int findLiftedLevel(int logicalWidth, int logicalHeight, int settledLevel, int requiredLift){
-        int maxAllowedLevel = settledLevel - requiredLift;
-        if(maxAllowedLevel < 0){
+    private int findConstrainedLevel(
+        int logicalWidth,
+        int logicalHeight,
+        int settledLevel,
+        int requiredLift,
+        int maxBaseLevelAllowed
+    ){
+        int maxAllowedByLift = settledLevel - Math.max(0, requiredLift);
+        int searchStart = Math.min(settledLevel, Math.min(maxBaseLevelAllowed, maxAllowedByLift));
+        if(searchStart < 0){
             return -1;
         }
 
         int startX = startXForWidth(logicalWidth);
-        for(int level = maxAllowedLevel; level >= 0; level--){
+        for(int level = searchStart; level >= 0; level--){
             if(canPlace(level, startX, logicalWidth, logicalHeight)){
                 return level;
             }

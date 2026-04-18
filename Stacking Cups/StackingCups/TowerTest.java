@@ -77,6 +77,35 @@ public class TowerTest {
     }
 
     @Test
+    public void shouldAvoidBaseOverlapWhenNestingCups(){
+        tower.pushCup(5);
+        tower.pushCup(1);
+
+        int baseLarge = tower.logicalBaseLevel("cup", 5);
+        int baseSmall = tower.logicalBaseLevel("cup", 1);
+
+        assertTrue(tower.ok());
+        assertTrue(baseLarge >= 0);
+        assertTrue(baseSmall >= 0);
+        assertTrue(baseSmall < baseLarge);
+    }
+
+    @Test
+    public void shouldKeepInsertionOrderForDisorderedCups(){
+        tower.pushCup(2);
+        tower.pushCup(3);
+        tower.pushCup(1);
+
+        String[][] items = tower.stackingItems();
+
+        assertTrue(tower.ok());
+        assertEquals(3, items.length);
+        assertEquals("2", items[0][1]);
+        assertEquals("3", items[1][1]);
+        assertEquals("1", items[2][1]);
+    }
+
+    @Test
     public void shouldRejectDuplicateIdForSameType(){
         tower.pushCup(4);
         tower.pushCup(4);
