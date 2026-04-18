@@ -1,5 +1,6 @@
 package StackingCups;
 import java.util.*;
+import java.util.function.IntFunction;
 import javax.swing.*;
 import shapes.*;
 
@@ -14,10 +15,19 @@ import shapes.*;
  */
 public class Tower {
 
+    private static final String TYPE_CUP = "cup";
+    private static final String TYPE_LID = "lid";
+    private static final String TYPE_OPENER = "opener";
+    private static final String TYPE_HIERARCHICAL = "hierarchical";
+    private static final String TYPE_FEARFUL = "fearful";
+    private static final String TYPE_CRAZY = "crazy";
+
     private final List<StackableElement> elements;
+    private final Map<StackableElement, Integer> liftLevelsByElement;
     private boolean lastOperationOk;
     private final int width;
     private boolean isVisible;
+    private final Map<String, IntFunction<StackableElement>> elementFactories;
 
     private final StackableElement[][] grid;
     private final int rows;
@@ -52,13 +62,16 @@ public class Tower {
      */
     public Tower(int width, int maxHeight) {
         elements = new ArrayList<>();
+        liftLevelsByElement = new HashMap<>();
         this.width = Math.max(1, width);
         this.cols = this.width;
         this.rows = Math.max(1, maxHeight);
         this.lastOperationOk = false;
         this.isVisible = false;
+        this.elementFactories = new HashMap<>();
 
         grid = new StackableElement[rows][cols];
+        registerBuiltInTypes();
 
         int towerPixelWidth = cols * CELL_SIZE;
         int meterPixelWidth = METER_BAR_WIDTH + 12;
@@ -99,13 +112,15 @@ public class Tower {
         this(Math.max(1, (2 * Math.max(1, cups)) - 1), Math.max(2, Math.max(1, cups) * 2));
     }
 
+    // --- CICLO 2 ---
+
     /**
      * Agrega una taza por identificador si respeta las reglas de negocio.
      *
      * @param n Identificador positivo de la taza.
      */
     public void pushCup(int n){
-        addElement("cup", n);
+        addElement(TYPE_CUP, n);
     }
 
     /**
@@ -130,7 +145,45 @@ public class Tower {
      * @param n Identificador positivo de la tapa.
      */
     public void pushLid(int n) {
-        addElement("lid", n);
+        addElement(TYPE_LID, n);
+    }
+
+    // --- CICLO 4 ---
+
+    /**
+     * Agrega una taza especial opener por identificador.
+     *
+     * @param n Identificador positivo del elemento.
+     */
+    public void pushOpener(int n){
+        addElement(TYPE_OPENER, n);
+    }
+
+    /**
+     * Agrega una taza especial hierarchical por identificador.
+     *
+     * @param n Identificador positivo del elemento.
+     */
+    public void pushHierarchical(int n){
+        addElement(TYPE_HIERARCHICAL, n);
+    }
+
+    /**
+     * Agrega una tapa especial fearful por identificador.
+     *
+     * @param n Identificador positivo del elemento.
+     */
+    public void pushFearful(int n){
+        addElement(TYPE_FEARFUL, n);
+    }
+
+    /**
+     * Agrega una tapa especial crazy por identificador.
+     *
+     * @param n Identificador positivo del elemento.
+     */
+    public void pushCrazy(int n){
+        addElement(TYPE_CRAZY, n);
     }
 
     /**
@@ -157,6 +210,7 @@ public class Tower {
         List<StackableElement> ordered = buildOrderedByBase();
         elements.clear();
         elements.addAll(ordered);
+        liftLevelsByElement.clear();
         
         if(!rebuildGridFromElements()){
             fail("No fue posible ordenar toda la torre");
@@ -176,6 +230,7 @@ public class Tower {
         Collections.reverse(reversed);
         elements.clear();
         elements.addAll(reversed);
+        liftLevelsByElement.clear();
         
         if(!rebuildGridFromElements()){
             fail("No fue posible invertir toda la torre");
@@ -207,12 +262,28 @@ public class Tower {
             return;
         }
 
-        int idx1 = elements.indexOf(elem1);
-        int idx2 = elements.indexOf(elem2);
-        Collections.swap(elements, idx1, idx2);
-        
+        List<StackableElement> unit1 = elementUnit(elem1);
+        List<StackableElement> unit2 = elementUnit(elem2);
+        if(hasOverlap(unit1, unit2)){
+            // Intercambiar dentro de la misma unidad no altera el estado final.
+            lastOperationOk = true;
+            repaint();
+            return;
+        }
+
+        List<StackableElement> swapped = swapUnits(unit1, unit2);
+        if(swapped.isEmpty()){
+            fail("No fue posible construir el intercambio solicitado");
+            return;
+        }
+
+        List<StackableElement> previous = new ArrayList<>(elements);
+        elements.clear();
+        elements.addAll(swapped);
+
         if(!rebuildGridFromElements()){
-            Collections.swap(elements, idx1, idx2);
+            elements.clear();
+            elements.addAll(previous);
             rebuildGridFromElements();
             fail("No fue posible aplicar el intercambio");
             return;
@@ -238,6 +309,7 @@ public class Tower {
         List<StackableElement> coveredOrder = buildCoveredOrder();
         elements.clear();
         elements.addAll(coveredOrder);
+        liftLevelsByElement.clear();
         
         if(!rebuildGridFromElements()){
             fail("No fue posible cubrir toda la torre");
@@ -353,6 +425,27 @@ public class Tower {
     }
 
     /**
+     * Retorna el nivel base logico actual de un elemento por tipo e id.
+     *
+     * @param type Tipo del elemento buscado.
+     * @param id Identificador del elemento buscado.
+     * @return Nivel base en grilla o -1 si no existe.
+     */
+    public int logicalBaseLevel(String type, int id){
+        StackableElement element = findElement(type, id);
+        if(element == null){
+            return -1;
+        }
+
+        int[] position = elementPositions.get(element);
+        if(position == null){
+            return -1;
+        }
+
+        return position[1];
+    }
+
+    /**
      * Retorna los ids de tazas cubiertas, ordenados de menor a mayor.
      *
      * @return Arreglo ascendente con ids de tazas que tienen tapa asociada.
@@ -362,7 +455,8 @@ public class Tower {
         synchronizeCupLidLinks();
 
         for(StackableElement element : elements){
-            if(element instanceof Cup cup && cup.hasLid()){
+            Cup cup = element.asCup();
+            if(cup != null && cup.hasLid()){
                 ids.add(cup.getId());
             }
         }
@@ -382,7 +476,7 @@ public class Tower {
      * @return Lista mutable de elementos del estado actual.
      */
     public List<StackableElement> getElements() {
-        return elements;
+        return Collections.unmodifiableList(elements);
     }
 
     /**
@@ -421,6 +515,11 @@ public class Tower {
      * Cierra el simulador con confirmacion de usuario.
      */
     public void exit() {
+        if(!isVisible){
+            lastOperationOk = true;
+            return;
+        }
+
         makeInvisible();
 
         int confirm = JOptionPane.showConfirmDialog(null,
@@ -446,6 +545,7 @@ public class Tower {
         }
 
         elements.clear();
+        liftLevelsByElement.clear();
         synchronizeCupLidLinks();
         clearGrid();
         repaint();
@@ -459,9 +559,39 @@ public class Tower {
         boolean fitsHeight = Math.max(1, cups) <= rows;
         lastOperationOk = fitsWidth && fitsHeight;
 
-        if(!lastOperationOk){
+        if(!lastOperationOk && isVisible){
             JOptionPane.showMessageDialog(null, "El simulador actual no soporta " + cups + " tazas");
         }
+    }
+
+    // --- CICLO 4 ---
+
+    /**
+     * Registra un nuevo tipo de elemento apilable para creacion extensible.
+     *
+     * @param type Nombre del tipo logico (por ejemplo cup, lid, opener).
+     * @param factory Fabrica que crea el elemento a partir de su id.
+     */
+    public void registerType(String type, IntFunction<StackableElement> factory){
+        if(type == null || type.trim().isEmpty() || factory == null){
+            fail("No fue posible registrar el tipo solicitado");
+            return;
+        }
+
+        elementFactories.put(type.toLowerCase(), factory);
+        lastOperationOk = true;
+    }
+
+    /**
+     * Registra los tipos base soportados por el simulador.
+     */
+    private void registerBuiltInTypes(){
+        elementFactories.put(TYPE_CUP, Cup::new);
+        elementFactories.put(TYPE_LID, Lid::new);
+        elementFactories.put(TYPE_OPENER, OpenerCup::new);
+        elementFactories.put(TYPE_HIERARCHICAL, HierarchicalCup::new);
+        elementFactories.put(TYPE_FEARFUL, FearfulLid::new);
+        elementFactories.put(TYPE_CRAZY, CrazyLid::new);
     }
 
     /**
@@ -488,13 +618,19 @@ public class Tower {
             return;
         }
 
-        elements.add(element);
+        if(!validateSpecialRequirements(element)){
+            return;
+        }
+
+        List<StackableElement> previous = new ArrayList<>(elements);
+        Map<StackableElement, Integer> previousLifts = new HashMap<>(liftLevelsByElement);
+
+        applyPreInsertionEffects(element);
+        insertElementRespectingBehavior(element);
         synchronizeCupLidLinks();
 
         if(!rebuildGridFromElements()){
-            elements.remove(element);
-            synchronizeCupLidLinks();
-            rebuildGridFromElements();
+            restoreElements(previous, previousLifts);
             fail("No hay espacio para el elemento solicitado");
             return;
         }
@@ -511,11 +647,267 @@ public class Tower {
      * @return Instancia creada o null si el tipo no existe.
      */
     private StackableElement createElement(String type, int id){
-        if("cup".equalsIgnoreCase(type)){
-            return new Cup(id);
+        IntFunction<StackableElement> factory = elementFactories.get(type.toLowerCase());
+        if(factory == null){
+            return null;
         }
-        if("lid".equalsIgnoreCase(type)){
-            return new Lid(id);
+        return factory.apply(id);
+    }
+
+    // --- CICLO 4 ---
+
+    /**
+     * Valida precondiciones especiales declaradas por el elemento.
+     *
+     * @param element Elemento por insertar.
+     * @return true cuando las precondiciones se cumplen.
+     */
+    private boolean validateSpecialRequirements(StackableElement element){
+        if(element.requiresCompanionCup() && findCompanionCupById(element.getId()) == null){
+            fail("La tapa requiere que su taza companera ya exista en la torre");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Aplica efectos previos de insercion definidos por cada comportamiento.
+     *
+     * @param element Elemento que sera insertado.
+     */
+    private void applyPreInsertionEffects(StackableElement element){
+        if(element.removesBlockingLids()){
+            removeBlockingLidsFor(element);
+        }
+    }
+
+    /**
+     * Elimina solo tapas que bloquean el trayecto de entrada del opener.
+     *
+     * @param opener Elemento abridor por insertar.
+     */
+    private void removeBlockingLidsFor(StackableElement opener){
+        Set<StackableElement> blockers = blockingLidsForBestPlacement(opener);
+        if(blockers.isEmpty()){
+            return;
+        }
+
+        elements.removeIf(blockers::contains);
+        blockers.forEach(liftLevelsByElement::remove);
+    }
+
+    /**
+     * Calcula las tapas bloqueantes del mejor nivel alcanzable.
+     *
+     * @param opener Elemento abridor por insertar.
+     * @return Conjunto de tapas que impiden el paso en el mejor nivel.
+     */
+    private Set<StackableElement> blockingLidsForBestPlacement(StackableElement opener){
+        int logicalWidth = opener.logicalWidth();
+        int logicalHeight = opener.logicalHeight();
+        int startX = startXForWidth(logicalWidth);
+
+        if(startX < 0 || startX + logicalWidth > cols){
+            return Collections.emptySet();
+        }
+
+        for(int level = rows - 1; level >= 0; level--){
+            PlacementProbe probe = evaluatePlacementAllowingLidRemoval(level, startX, logicalWidth, logicalHeight);
+            if(probe.reachable){
+                return probe.blockingLids;
+            }
+        }
+
+        return Collections.emptySet();
+    }
+
+    /**
+     * Evalua un nivel y recolecta tapas removibles que bloquean el volumen.
+     *
+     * @param level Nivel base candidato.
+     * @param startX Inicio horizontal del elemento.
+     * @param logicalWidth Ancho logico del elemento.
+     * @param logicalHeight Alto logico del elemento.
+     * @return Resultado de alcanzabilidad y tapas bloqueantes en el nivel.
+     */
+    private PlacementProbe evaluatePlacementAllowingLidRemoval(int level, int startX, int logicalWidth, int logicalHeight){
+        if(level < 0 || level >= rows){
+            return PlacementProbe.unreachable();
+        }
+
+        int topLevel = level - logicalHeight + 1;
+        if(topLevel < 0){
+            return PlacementProbe.unreachable();
+        }
+
+        Set<StackableElement> blockers = new HashSet<>();
+
+        for(int y = topLevel; y <= level; y++){
+            for(int x = startX; x < startX + logicalWidth; x++){
+                StackableElement occupied = grid[y][x];
+                if(isUnremovableBlocker(occupied, logicalWidth, blockers)){
+                    return PlacementProbe.unreachable();
+                }
+            }
+        }
+
+        return PlacementProbe.reachable(blockers);
+    }
+
+    /**
+     * Evalua una celda ocupada para decidir si bloquea de forma removible.
+     *
+     * @param occupied Elemento ocupando la celda.
+     * @param logicalWidth Ancho logico del elemento entrante.
+     * @param blockers Coleccion de tapas bloqueantes removibles.
+     * @return true cuando existe bloqueo no removible; false en otro caso.
+     */
+    private boolean isUnremovableBlocker(StackableElement occupied, int logicalWidth, Set<StackableElement> blockers){
+        if(occupied == null || occupied.canContainLogicalWidth(logicalWidth)){
+            return false;
+        }
+
+        if(occupied.getKind() == StackableElement.ElementKind.LID){
+            blockers.add(occupied);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Estructura inmutable para evaluar alcanzabilidad de ubicacion.
+     */
+    private static final class PlacementProbe {
+        private final boolean reachable;
+        private final Set<StackableElement> blockingLids;
+
+        private PlacementProbe(boolean reachable, Set<StackableElement> blockingLids){
+            this.reachable = reachable;
+            this.blockingLids = blockingLids;
+        }
+
+        private static PlacementProbe reachable(Set<StackableElement> blockingLids){
+            return new PlacementProbe(true, blockingLids);
+        }
+
+        private static PlacementProbe unreachable(){
+            return new PlacementProbe(false, Collections.emptySet());
+        }
+    }
+
+    /**
+     * Inserta el elemento respetando su estrategia polimorfica.
+     *
+     * @param element Elemento por insertar.
+     */
+    private void insertElementRespectingBehavior(StackableElement element){
+        if(element.pushesSmallerElementsUp()){
+            insertWithHierarchicalShift(element);
+            return;
+        }
+
+        if(element.prefersBasePlacement()){
+            insertAsCompanionBase(element);
+            return;
+        }
+
+        elements.add(element);
+    }
+
+    /**
+     * Inserta un elemento hierarchical por debajo de los mas pequenos.
+     *
+     * @param element Elemento hierarchical a insertar.
+     */
+    private void insertWithHierarchicalShift(StackableElement element){
+        List<StackableElement> lowerOrEqual = new ArrayList<>();
+        List<StackableElement> smaller = new ArrayList<>();
+
+        for(StackableElement existing : elements){
+            if(existing.logicalWidth() < element.logicalWidth()){
+                smaller.add(existing);
+                increaseLiftRequirement(existing, 1);
+            }
+            else{
+                lowerOrEqual.add(existing);
+            }
+        }
+
+        liftLevelsByElement.remove(element);
+
+        elements.clear();
+        elements.addAll(lowerOrEqual);
+        elements.add(element);
+        elements.addAll(smaller);
+    }
+
+    /**
+     * Aumenta el desplazamiento vertical requerido para un elemento.
+     *
+     * @param element Elemento a desplazar.
+     * @param levels Cantidad de niveles a incrementar.
+     */
+    private void increaseLiftRequirement(StackableElement element, int levels){
+        int current = liftLevelsByElement.getOrDefault(element, 0);
+        liftLevelsByElement.put(element, current + Math.max(0, levels));
+    }
+
+    /**
+     * Inserta una tapa crazy como base de su taza companera.
+     *
+     * @param element Tapa con comportamiento de base.
+     */
+    private void insertAsCompanionBase(StackableElement element){
+        int companionIndex = findCompanionCupIndex(element.getId());
+        if(companionIndex < 0){
+            elements.add(element);
+            return;
+        }
+        elements.add(companionIndex, element);
+    }
+
+    /**
+     * Restaura el estado previo de elementos y su representacion en grilla.
+     *
+     * @param previous Estado previo de la lista de elementos.
+     */
+    private void restoreElements(List<StackableElement> previous, Map<StackableElement, Integer> previousLifts){
+        elements.clear();
+        elements.addAll(previous);
+        liftLevelsByElement.clear();
+        liftLevelsByElement.putAll(previousLifts);
+        synchronizeCupLidLinks();
+        rebuildGridFromElements();
+    }
+
+    /**
+     * Busca el indice de la taza companera por id.
+     *
+     * @param id Identificador companero.
+     * @return Indice de la taza en la lista o -1 si no existe.
+     */
+    private int findCompanionCupIndex(int id){
+        for(int i = 0; i < elements.size(); i++){
+            StackableElement element = elements.get(i);
+            if(element.getKind() == StackableElement.ElementKind.CUP && element.getId() == id){
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Busca la taza companera de un elemento por id.
+     *
+     * @param id Identificador del companero.
+     * @return Taza companera o null cuando no existe.
+     */
+    private StackableElement findCompanionCupById(int id){
+        for(StackableElement element : elements){
+            if(element.getKind() == StackableElement.ElementKind.CUP && element.getId() == id){
+                return element;
+            }
         }
         return null;
     }
@@ -532,8 +924,13 @@ public class Tower {
             return;
         }
 
-        topElement.makeInvisible();
-        elements.remove(topElement);
+        List<StackableElement> removal = elementUnit(topElement);
+        for(StackableElement element : removal){
+            element.makeInvisible();
+            elements.remove(element);
+            liftLevelsByElement.remove(element);
+        }
+
         synchronizeCupLidLinks();
         rebuildGridFromElements();
         lastOperationOk = true;
@@ -553,8 +950,13 @@ public class Tower {
             return;
         }
 
-        target.makeInvisible();
-        elements.remove(target);
+        List<StackableElement> removal = elementUnit(target);
+        for(StackableElement element : removal){
+            element.makeInvisible();
+            elements.remove(element);
+            liftLevelsByElement.remove(element);
+        }
+
         synchronizeCupLidLinks();
         rebuildGridFromElements();
         lastOperationOk = true;
@@ -567,15 +969,15 @@ public class Tower {
      * @return Lista ordenada lista para reconstruir la torre.
      */
     private List<StackableElement> buildOrderedByBase(){
-        Map<Integer, Cup> cups = new HashMap<>();
-        Map<Integer, Lid> lids = new HashMap<>();
+        Map<Integer, StackableElement> cups = new HashMap<>();
+        Map<Integer, StackableElement> lids = new HashMap<>();
 
         for(StackableElement e : elements){
-            if(e instanceof Cup cup){
-                cups.put(e.getId(), cup);
+            if(e.getKind() == StackableElement.ElementKind.CUP){
+                cups.put(e.getId(), e);
             }
-            else if(e instanceof Lid lid){
-                lids.put(e.getId(), lid);
+            else if(e.getKind() == StackableElement.ElementKind.LID){
+                lids.put(e.getId(), e);
             }
         }
 
@@ -585,14 +987,14 @@ public class Tower {
 
         List<StackableElement> ordered = new ArrayList<>();
         for(int id : allIds){
-            Cup cup = cups.get(id);
-            Lid lid = lids.get(id);
+            StackableElement cup = cups.get(id);
+            StackableElement lid = lids.get(id);
 
-            if(lid != null){
-                ordered.add(lid);
-            }
             if(cup != null){
                 ordered.add(cup);
+            }
+            if(lid != null){
+                ordered.add(lid);
             }
         }
 
@@ -622,7 +1024,8 @@ public class Tower {
      */
     private void addCupsAndLinkedLids(List<StackableElement> coveredOrder, Set<StackableElement> added){
         for(StackableElement element : elements){
-            if(element instanceof Cup cup){
+            Cup cup = element.asCup();
+            if(cup != null){
                 addIfMissing(cup, coveredOrder, added);
                 if(cup.hasLid()){
                     Lid lid = cup.getLid();
@@ -667,13 +1070,15 @@ public class Tower {
         Map<Integer, Lid> lidsById = new HashMap<>();
 
         for(StackableElement element : elements){
-            if(element instanceof Lid lid){
-                lidsById.put(element.getId(), lid);
+            Lid lid = element.asLid();
+            if(lid != null){
+                lidsById.put(lid.getId(), lid);
             }
         }
 
         for(StackableElement element : elements){
-            if(element instanceof Cup cup){
+            Cup cup = element.asCup();
+            if(cup != null){
                 cup.setLid(lidsById.get(cup.getId()));
             }
         }
@@ -710,14 +1115,17 @@ public class Tower {
             return false;
         }
 
-        try{
-            Integer.parseInt(descriptor[1]);
-        }
-        catch(NumberFormatException ignored){
+        if(!descriptor[1].matches("\\d+")){
             return false;
         }
 
-        return descriptor[0].equalsIgnoreCase("cup") || descriptor[0].equalsIgnoreCase("lid");
+        String type = descriptor[0].toLowerCase();
+        return type.equals(TYPE_CUP)
+            || type.equals(TYPE_LID)
+            || type.equals(TYPE_OPENER)
+            || type.equals(TYPE_HIERARCHICAL)
+            || type.equals(TYPE_FEARFUL)
+            || type.equals(TYPE_CRAZY);
     }
 
     /**
@@ -770,6 +1178,105 @@ public class Tower {
         if(isVisible){
             JOptionPane.showMessageDialog(null, message);
         }
+    }
+
+    /**
+     * Retorna la unidad logica de movimiento de un elemento.
+     *
+     * Si el elemento es una taza cubierta, o su tapa asociada, la unidad
+     * contiene ambos para preservar el movimiento conjunto.
+     *
+     * @param element Elemento base de consulta.
+     * @return Lista en orden actual de la unidad a mover/eliminar.
+     */
+    private List<StackableElement> elementUnit(StackableElement element){
+        if(element == null){
+            return Collections.emptyList();
+        }
+
+        Set<StackableElement> unitSet = new HashSet<>();
+        unitSet.add(element);
+
+        if(element.hasLinkedLid()){
+            Lid lid = element.getLinkedLid();
+            if(lid != null){
+                unitSet.add(lid);
+            }
+        }
+        else if(element.getKind() == StackableElement.ElementKind.LID){
+            StackableElement cup = findCompanionCupById(element.getId());
+            if(cup != null){
+                unitSet.add(cup);
+            }
+        }
+
+        List<StackableElement> orderedUnit = new ArrayList<>();
+        for(StackableElement candidate : elements){
+            if(unitSet.contains(candidate)){
+                orderedUnit.add(candidate);
+            }
+        }
+        return orderedUnit;
+    }
+
+    /**
+     * Determina si dos unidades de elementos comparten piezas.
+     *
+     * @param unit1 Primera unidad.
+     * @param unit2 Segunda unidad.
+     * @return true si comparten al menos un elemento; false en caso contrario.
+     */
+    private boolean hasOverlap(List<StackableElement> unit1, List<StackableElement> unit2){
+        Set<StackableElement> set = new HashSet<>(unit1);
+        for(StackableElement element : unit2){
+            if(set.contains(element)){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Intercambia dos unidades logicas conservando orden interno de cada una.
+     *
+     * @param unit1 Primera unidad.
+     * @param unit2 Segunda unidad.
+     * @return Nueva lista resultante del intercambio.
+     */
+    private List<StackableElement> swapUnits(List<StackableElement> unit1, List<StackableElement> unit2){
+        if(unit1.isEmpty() || unit2.isEmpty()){
+            return Collections.emptyList();
+        }
+
+        Set<StackableElement> set1 = new HashSet<>(unit1);
+        Set<StackableElement> set2 = new HashSet<>(unit2);
+
+        List<StackableElement> swapped = new ArrayList<>();
+        boolean inserted1 = false;
+        boolean inserted2 = false;
+
+        for(StackableElement element : elements){
+            boolean belongsToUnit1 = set1.contains(element);
+            boolean belongsToUnit2 = set2.contains(element);
+
+            if(belongsToUnit1){
+                if(!inserted1){
+                    swapped.addAll(unit2);
+                    inserted1 = true;
+                }
+            }
+            else if(belongsToUnit2){
+                if(!inserted2){
+                    swapped.addAll(unit1);
+                    inserted2 = true;
+                }
+            }
+            else{
+                swapped.add(element);
+            }
+        }
+
+        return swapped;
     }
 
     /**
@@ -869,7 +1376,7 @@ public class Tower {
             StackableElement element = entry.getKey();
             int[] pos = entry.getValue();
             int baseLevel = pos[1];
-            int logicalHeight = Math.max(1, element.getHeight() / CELL_SIZE);
+            int logicalHeight = element.logicalHeight();
             int topLevel = baseLevel - logicalHeight + 1;
             minLevel = Math.min(minLevel, topLevel);
         }
@@ -954,12 +1461,7 @@ public class Tower {
      * @return true si el encaje es valido; false si debe considerarse colision.
      */
     private boolean canNestInsideCup(StackableElement occupied, int currentLogicalWidth){
-        if(!(occupied instanceof Cup)){
-            return false;
-        }
-
-        int occupiedLogicalWidth = occupied.getWidth() / CELL_SIZE;
-        return currentLogicalWidth < occupiedLogicalWidth;
+        return occupied.canContainLogicalWidth(currentLogicalWidth);
     }
 
     /**
@@ -972,7 +1474,7 @@ public class Tower {
      */
     private void placeAtLevel(StackableElement element, int level, int logicalWidth){
         int startX = startXForWidth(logicalWidth);
-        int logicalHeight = Math.max(1, element.getHeight() / CELL_SIZE);
+        int logicalHeight = element.logicalHeight();
         int topLevel = level - logicalHeight + 1;
 
         for(int y = topLevel; y <= level; y++){
@@ -991,6 +1493,7 @@ public class Tower {
      * @return true si toda la reconstruccion fue exitosa; false si falla.
      */
     private boolean rebuildGridFromElements(){
+        pruneLiftRequirements();
         clearGrid();
 
         for(StackableElement element : elements){
@@ -1003,20 +1506,63 @@ public class Tower {
     }
 
     /**
+     * Elimina requisitos de elevacion de elementos ya ausentes.
+     */
+    private void pruneLiftRequirements(){
+        liftLevelsByElement.keySet().removeIf(element -> !elements.contains(element));
+    }
+
+    /**
      * Ubica un elemento individual en el nivel mas bajo valido.
      *
      * @param element Elemento a ubicar.
      * @return true si el elemento fue ubicado; false si no hay espacio.
      */
     private boolean placeSingleElement(StackableElement element){
-        int logicalWidth = element.getWidth() / CELL_SIZE;
-        int logicalHeight = Math.max(1, element.getHeight() / CELL_SIZE);
-        int level = findLevelForWidth(logicalWidth, logicalHeight);
-        if(level == -1){
+        int logicalWidth = element.logicalWidth();
+        int logicalHeight = element.logicalHeight();
+        int settledLevel = findLevelForWidth(logicalWidth, logicalHeight);
+        if(settledLevel == -1){
             return false;
         }
+
+        int requiredLift = liftLevelsByElement.getOrDefault(element, 0);
+        int level = settledLevel;
+
+        if(requiredLift > 0){
+            level = findLiftedLevel(logicalWidth, logicalHeight, settledLevel, requiredLift);
+            if(level == -1){
+                return false;
+            }
+        }
+
         placeAtLevel(element, level, logicalWidth);
         return true;
+    }
+
+    /**
+     * Busca un nivel valido que cumpla una elevacion minima requerida.
+     *
+     * @param logicalWidth Ancho logico del elemento.
+     * @param logicalHeight Alto logico del elemento.
+     * @param settledLevel Nivel de equilibrio por gravedad.
+     * @param requiredLift Niveles minimos que debe subir el elemento.
+     * @return Nivel valido elevado o -1 si no existe.
+     */
+    private int findLiftedLevel(int logicalWidth, int logicalHeight, int settledLevel, int requiredLift){
+        int maxAllowedLevel = settledLevel - requiredLift;
+        if(maxAllowedLevel < 0){
+            return -1;
+        }
+
+        int startX = startXForWidth(logicalWidth);
+        for(int level = maxAllowedLevel; level >= 0; level--){
+            if(canPlace(level, startX, logicalWidth, logicalHeight)){
+                return level;
+            }
+        }
+
+        return -1;
     }
 
     /**
@@ -1057,23 +1603,16 @@ public class Tower {
     }
 
     /**
-     * Busca el elemento mas alto de un tipo en la grilla actual.
+     * Busca el ultimo elemento agregado de un tipo en la lista actual.
      *
      * @param type Tipo de elemento a buscar (cup o lid).
-     * @return Elemento encontrado en la mayor altura o null si no existe.
+     * @return Elemento encontrado o null si no existe.
      */
     private StackableElement findTopElementByType(String type){
-        Set<StackableElement> seen = new HashSet<>();
-
-        for(int y = 0; y < rows; y++){
-            for(int x = 0; x < cols; x++){
-                StackableElement element = grid[y][x];
-                if(element != null && !seen.contains(element)){
-                    seen.add(element);
-                    if(element.getType().equalsIgnoreCase(type)){
-                        return element;
-                    }
-                }
+        for(int i = elements.size() - 1; i >= 0; i--){
+            StackableElement element = elements.get(i);
+            if(element.getType().equalsIgnoreCase(type)){
+                return element;
             }
         }
 
